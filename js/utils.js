@@ -52,6 +52,14 @@ function loadDB() {
                 db.settings.billingDays = { ...DEFAULT_BILLING };
             }
         }
+
+        // --- Phase 1: 插入 Lazy Migration 攔截點 ---
+        // 提醒：請先確認 saveDB 只是單純儲存，無反向呼叫 loadDB 或其他副作用
+        if (_migrateWarehouseToV2(db)) {
+            saveDB(db);
+        }
+        // -------------------------------------------
+
         return db;
     } catch (e) {
         console.error("資料庫解析失敗，已重置為預設狀態", e);
@@ -123,4 +131,80 @@ function normalizeAirlineCode(name) {
 // ==========================================
 function normalizeStr(str) {
     return typeof str === 'string' ? str.replace(/\s+/g, '').toLowerCase() : '';
+}
+
+// ==========================================
+// 內部私有函式：資料庫 Schema V2 惰性升級 (Lazy Migration)
+// ==========================================
+function _migrateWarehouseToV2(db) {
+    if (!db || !Array.isArray(db.warehouse)) return false;
+
+    let needsSave = false;
+    const migrationTimestamp = Date.now();
+
+    db.warehouse.forEach((asset, idx) => {
+        if (!asset || typeof asset !== 'object') return;
+
+        const currentVal = Number(asset.current) || 0;
+        const hasValidBatchesArray = Array.isArray(asset.batches);
+        const hasExistingBatches = hasValidBatchesArray && asset.batches.length > 0;
+
+        // 只有在：
+        // 1. schema_version >= 2
+        // 2. batches 是陣列
+        // 3. 若 current !== 0，batches 不能是空陣列
+        // 才視為健康 V2
+        const isHealthyV2 =
+            asset.schema_version >= 2 &&
+            hasValidBatchesArray &&
+            !(currentVal !== 0 && asset.batches.length === 0);
+
+        if (isHealthyV2) return;
+
+        needsSave = true;
+
+        // 補齊版本標記
+        asset.schema_version = 2;
+        if (!asset.migrated_at) {
+            asset.migrated_at = migrationTimestamp;
+        }
+
+        // 若 batches 不是陣列，初始化為空陣列；若已存在則保留
+        if (!hasValidBatchesArray) {
+            asset.batches = [];
+        }
+
+        // 只有在原本沒有 batches 或為空陣列時，才允許根據 current 補 migration batch
+        const canCreateMigrationBatch = !hasExistingBatches;
+
+        if (canCreateMigrationBatch) {
+            const hasMigrationBatch = asset.batches.some(
+                b => b && typeof b === 'object' && b.source_type === 'system_migration'
+            );
+
+            if (currentVal !== 0 && !hasMigrationBatch) {
+                let rawName = String(asset.name || asset.targetAirline || 'UNK');
+                let nameSnippet = rawName
+                    .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '')
+                    .substring(0, 3);
+
+                if (!nameSnippet) nameSnippet = 'UNK';
+
+                const batchId = `mig_${migrationTimestamp}_${idx}_${nameSnippet}`;
+                const direction = currentVal > 0 ? 'in' : 'out';
+
+                asset.batches.push({
+                    batch_id: batchId,
+                    direction: direction,
+                    amount: Math.abs(currentVal),
+                    created_at: migrationTimestamp,
+                    source_type: 'system_migration',
+                    ref_id: null,
+                    note: '舊版系統餘額結轉'
+                });
+            }
+        }
+    });
+
+    return needsSave;
 }
