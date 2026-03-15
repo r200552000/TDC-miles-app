@@ -39,7 +39,6 @@ if (typeof recomputeAssetCurrent !== 'function') {
 // 只用於 type === 'airline'
 // ==========================================
 const AIRLINE_ALIAS_MAP = {
-    // 1. 長榮航空 / 立榮航空 / Infinity MileageLands
     [normalizeStr('長榮')]: '長榮航空',
     [normalizeStr('長榮航空')]: '長榮航空',
     [normalizeStr('立榮')]: '長榮航空',
@@ -49,7 +48,6 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('eva')]: '長榮航空',
     [normalizeStr('br')]: '長榮航空',
 
-    // 2. 國泰航空 / 亞洲萬里通
     [normalizeStr('國泰')]: '國泰航空',
     [normalizeStr('國泰航空')]: '國泰航空',
     [normalizeStr('亞洲萬里通')]: '國泰航空',
@@ -59,7 +57,6 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('cathay')]: '國泰航空',
     [normalizeStr('cx')]: '國泰航空',
 
-    // 3. 新加坡航空 / 勝安 / 酷航 / KrisFlyer
     [normalizeStr('新航')]: '新加坡航空',
     [normalizeStr('新加坡航空')]: '新加坡航空',
     [normalizeStr('勝安航空')]: '新加坡航空',
@@ -67,46 +64,39 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('krisflyer')]: '新加坡航空',
     [normalizeStr('sq')]: '新加坡航空',
 
-    // 4. 日本航空 / JAL
     [normalizeStr('日航')]: '日本航空',
     [normalizeStr('日本航空')]: '日本航空',
     [normalizeStr('jal')]: '日本航空',
     [normalizeStr('jal mileage bank')]: '日本航空',
     [normalizeStr('jl')]: '日本航空',
 
-    // 5. 全日空 / ANA / ANA Mileage Club
     [normalizeStr('全日空')]: '全日空',
     [normalizeStr('全日空航空')]: '全日空',
     [normalizeStr('ana')]: '全日空',
     [normalizeStr('ana mileage club')]: '全日空',
     [normalizeStr('nh')]: '全日空',
 
-    // 6. 亞航
     [normalizeStr('亞航')]: '亞航',
     [normalizeStr('airasia')]: '亞航',
     [normalizeStr('airasia rewards')]: '亞航',
 
-    // 7. 阿聯酋航空 / Skywards
     [normalizeStr('阿聯酋')]: '阿聯酋航空',
     [normalizeStr('阿聯酋航空')]: '阿聯酋航空',
     [normalizeStr('skywards')]: '阿聯酋航空',
     [normalizeStr('emirates')]: '阿聯酋航空',
     [normalizeStr('ek')]: '阿聯酋航空',
 
-    // 8. 加拿大航空 / Aeroplan
     [normalizeStr('加航')]: '加拿大航空',
     [normalizeStr('加拿大航空')]: '加拿大航空',
     [normalizeStr('aeroplan')]: '加拿大航空',
     [normalizeStr('air canada')]: '加拿大航空',
     [normalizeStr('ac')]: '加拿大航空',
 
-    // 9. 哥倫比亞航空 / LifeMiles
     [normalizeStr('哥倫比亞航空')]: '哥倫比亞航空',
     [normalizeStr('lifemiles')]: '哥倫比亞航空',
     [normalizeStr('avianca')]: '哥倫比亞航空',
     [normalizeStr('av')]: '哥倫比亞航空',
 
-    // 10. 法航荷航 / Flying Blue
     [normalizeStr('法航')]: '法航荷航藍天飛行',
     [normalizeStr('荷航')]: '法航荷航藍天飛行',
     [normalizeStr('法航與荷航')]: '法航荷航藍天飛行',
@@ -115,21 +105,18 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('air france')]: '法航荷航藍天飛行',
     [normalizeStr('klm')]: '法航荷航藍天飛行',
 
-    // 11. 海南航空 / 金鵬俱樂部
     [normalizeStr('海南航空')]: '海南航空',
     [normalizeStr('金鵬俱樂部')]: '海南航空',
     [normalizeStr('fortuna')]: '海南航空',
     [normalizeStr('hainan airlines')]: '海南航空',
     [normalizeStr('hu')]: '海南航空',
 
-    // 12. 澳洲航空 / Qantas
     [normalizeStr('澳航')]: '澳洲航空',
     [normalizeStr('澳洲航空')]: '澳洲航空',
     [normalizeStr('qantas')]: '澳洲航空',
     [normalizeStr('qantas frequent flyer')]: '澳洲航空',
     [normalizeStr('qf')]: '澳洲航空',
 
-    // 13. 卡達航空 / Privilege Club / Avios
     [normalizeStr('卡達')]: '卡達航空',
     [normalizeStr('卡達航空')]: '卡達航空',
     [normalizeStr('貴賓俱樂部')]: '卡達航空',
@@ -137,7 +124,6 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('avios')]: '卡達航空',
     [normalizeStr('qr')]: '卡達航空',
 
-    // 14. 聯合航空 / MileagePlus
     [normalizeStr('聯合航空')]: '聯合航空',
     [normalizeStr('前程萬里')]: '聯合航空',
     [normalizeStr('前程萬里飛行計劃')]: '聯合航空',
@@ -145,20 +131,17 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('united')]: '聯合航空',
     [normalizeStr('ua')]: '聯合航空',
 
-    // 15. 越南航空 / Lotusmiles
     [normalizeStr('越南航空')]: '越南航空',
     [normalizeStr('微笑蓮花')]: '越南航空',
     [normalizeStr('lotusmiles')]: '越南航空',
     [normalizeStr('vn')]: '越南航空',
 
-    // 16. 土耳其航空 / Miles&Smiles
     [normalizeStr('土耳其航空')]: '土耳其航空',
     [normalizeStr('miles&smiles')]: '土耳其航空',
     [normalizeStr('miles and smiles')]: '土耳其航空',
     [normalizeStr('turkish airlines')]: '土耳其航空',
     [normalizeStr('tk')]: '土耳其航空',
 
-    // 17. 中華航空 / 華信航空 / 華夏哩程
     [normalizeStr('華航')]: '中華航空',
     [normalizeStr('中華航空')]: '中華航空',
     [normalizeStr('華信')]: '中華航空',
@@ -170,8 +153,7 @@ const AIRLINE_ALIAS_MAP = {
 };
 
 // ==========================================
-// transfer 來源池 canonical / alias map
-// 只用於 type === 'transfer'
+// transfer / raw 匯豐來源池 alias map
 // ==========================================
 const TRANSFER_SOURCE_ALIAS_MAP = {
     [normalizeStr('匯豐旅人')]: '匯豐 旅人積分',
@@ -191,10 +173,6 @@ const TRANSFER_SOURCE_ALIAS_MAP = {
     [normalizeStr('live+積分')]: '匯豐Live+積分'
 };
 
-// ==========================================
-// 航司名稱 canonical 化
-// 只給 airline 資產用
-// ==========================================
 function canonicalizeAirlineName(name) {
     const raw = String(name || '').trim();
     if (!raw) return '';
@@ -202,10 +180,6 @@ function canonicalizeAirlineName(name) {
     return AIRLINE_ALIAS_MAP[norm] || raw;
 }
 
-// ==========================================
-// transfer 來源名稱 canonical 化
-// 只給 transfer 資產用
-// ==========================================
 function canonicalizeTransferSourceName(name) {
     const raw = String(name || '').trim();
     if (!raw) return '';
@@ -213,12 +187,8 @@ function canonicalizeTransferSourceName(name) {
     return TRANSFER_SOURCE_ALIAS_MAP[norm] || raw;
 }
 
-// ==========================================
-// 只限 airline 資產的匹配 helper
-// ==========================================
 function findAirlineAssetByAlias(warehouse, inputName) {
     if (!Array.isArray(warehouse)) return null;
-
     const canonical = canonicalizeAirlineName(inputName);
     const canonicalNorm = normalizeStr(canonical);
 
@@ -230,12 +200,8 @@ function findAirlineAssetByAlias(warehouse, inputName) {
     ) || null;
 }
 
-// ==========================================
-// 只限 transfer 資產的匹配 helper
-// ==========================================
 function findTransferAssetByAlias(warehouse, inputName) {
     if (!Array.isArray(warehouse)) return null;
-
     const canonical = canonicalizeTransferSourceName(inputName);
     const canonicalNorm = normalizeStr(canonical);
 
@@ -247,8 +213,82 @@ function findTransferAssetByAlias(warehouse, inputName) {
     ) || null;
 }
 
+// ==========================================
+// 一次性 legacy merge：把舊匯豐別名卡收斂
+// 只處理 raw / transfer，不動 airline
+// ==========================================
+function mergeLegacyTransferAliases(db) {
+    if (!db || !Array.isArray(db.warehouse)) return false;
+
+    let changed = false;
+    const groups = {};
+
+    db.warehouse.forEach((asset, idx) => {
+        if (!asset || typeof asset !== 'object') return;
+        if (asset.type !== 'raw' && asset.type !== 'transfer') return;
+
+        const canonical = canonicalizeTransferSourceName(asset.name || '');
+        if (!canonical) return;
+
+        if (!groups[canonical]) groups[canonical] = [];
+        groups[canonical].push({ asset, idx });
+    });
+
+    Object.keys(groups).forEach(canonical => {
+        const list = groups[canonical];
+        if (!Array.isArray(list) || list.length <= 1) return;
+
+        const master = list[0].asset;
+        if (!Array.isArray(master.batches)) master.batches = [];
+
+        master.name = canonical;
+        if (master.type === 'transfer') master.targetAirline = canonical;
+
+        for (let i = 1; i < list.length; i++) {
+            const other = list[i].asset;
+            if (!other || typeof other !== 'object') continue;
+
+            if (Array.isArray(other.batches) && other.batches.length > 0) {
+                master.batches.push(...other.batches);
+            } else {
+                const val = Number(other.current) || 0;
+                if (val !== 0) {
+                    master.batches.push({
+                        batch_id: `legacy_${Date.now()}_${i}_${canonical.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0,3) || 'UNK'}`,
+                        direction: val > 0 ? 'in' : 'out',
+                        amount: Math.abs(val),
+                        created_at: Date.now(),
+                        source_type: 'legacy_merge',
+                        ref_id: null,
+                        note: `舊版別名歸戶：${other.name || canonical}`
+                    });
+                }
+            }
+
+            other.__merged_into__ = canonical;
+            other.current = 0;
+            other.batches = [];
+            changed = true;
+        }
+
+        recomputeAssetCurrent(master);
+        changed = true;
+    });
+
+    if (changed) {
+        db.warehouse = db.warehouse.filter(a => !(a && a.__merged_into__));
+    }
+
+    return changed;
+}
+
 function renderWarehouse() {
-    const db = loadDB(); const con = document.getElementById('warehouse-list'); if(!con) return; con.innerHTML = '';
+    const db = loadDB();
+    if (mergeLegacyTransferAliases(db)) {
+        saveDB(db);
+    }
+
+    const con = document.getElementById('warehouse-list'); if(!con) return; con.innerHTML = '';
     const chkCon = document.getElementById('planner-asset-container'); if(chkCon) chkCon.innerHTML = '';
 
     db.warehouse.forEach((item, idx) => {
@@ -347,9 +387,7 @@ function addNativeAsset() {
             db.warehouse.push(exactAsset);
         }
 
-        if (!Array.isArray(exactAsset.batches)) {
-            exactAsset.batches = [];
-        }
+        if (!Array.isArray(exactAsset.batches)) exactAsset.batches = [];
 
         const safeNameSnippet = finalAirlineName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
         const seq = exactAsset.batches.length;
@@ -386,10 +424,10 @@ function addRawAsset() {
             return alert('DEBUG: 找不到 raw-point-name 或 raw-point-current 欄位');
         }
 
-        const name = nameEl.value.trim();
+        const rawName = nameEl.value.trim();
         const qty = parseInt(qtyEl.value, 10);
 
-        if (!name || isNaN(qty) || qty <= 0) {
+        if (!rawName || isNaN(qty) || qty <= 0) {
             return showCustomAlert('請填寫完整資訊');
         }
 
@@ -398,14 +436,15 @@ function addRawAsset() {
             return alert('DEBUG: loadDB() 回傳異常，db.warehouse 不是陣列');
         }
 
-        let asset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'raw' && a.name === name);
+        const finalName = canonicalizeTransferSourceName(rawName);
+        let asset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'raw' && normalizeStr(canonicalizeTransferSourceName(a.name || '')) === normalizeStr(finalName));
         const timestamp = Date.now();
 
         if (!asset) {
             asset = {
                 type: 'raw',
                 targetAirline: '無',
-                name: name,
+                name: finalName,
                 current: 0,
                 unitPoints: 1,
                 unitMiles: 1,
@@ -418,11 +457,9 @@ function addRawAsset() {
             db.warehouse.push(asset);
         }
 
-        if (!Array.isArray(asset.batches)) {
-            asset.batches = [];
-        }
+        if (!Array.isArray(asset.batches)) asset.batches = [];
 
-        const safeNameSnippet = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
+        const safeNameSnippet = finalName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
         const seq = asset.batches.length;
         const batchId = `txn_${timestamp}_${seq}_${safeNameSnippet}`;
 
@@ -433,7 +470,7 @@ function addRawAsset() {
             created_at: timestamp,
             source_type: 'manual_input',
             ref_id: null,
-            note: '手動存入'
+            note: `手動存入（原始輸入：${rawName}）`
         });
 
         recomputeAssetCurrent(asset);
@@ -502,7 +539,7 @@ function addTransferAsset() {
                 a &&
                 typeof a === 'object' &&
                 a.type === 'raw' &&
-                normalizeStr(a.name) === normalizeStr(finalSourceName)
+                normalizeStr(canonicalizeTransferSourceName(a.name || '')) === normalizeStr(finalSourceName)
             );
         }
 
@@ -510,9 +547,7 @@ function addTransferAsset() {
             return showCustomAlert(`❌ 找不到名為「${rawSourceName}」的可扣除來源資產，請先確認倉庫內是否已有此項目。`);
         }
 
-        if (!Array.isArray(sourceAsset.batches)) {
-            sourceAsset.batches = [];
-        }
+        if (!Array.isArray(sourceAsset.batches)) sourceAsset.batches = [];
 
         const currentBalance = Number(sourceAsset.current) || 0;
         if(currentBalance < qty) {
@@ -549,9 +584,7 @@ function addTransferAsset() {
             db.warehouse.push(targetAsset);
         }
 
-        if (!Array.isArray(targetAsset.batches)) {
-            targetAsset.batches = [];
-        }
+        if (!Array.isArray(targetAsset.batches)) targetAsset.batches = [];
 
         const sourceSnippet = String(sourceAsset.name || 'SRC').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'SRC';
         const targetSnippet = String(targetAsset.name || 'TGT').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'TGT';
