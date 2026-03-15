@@ -34,6 +34,162 @@ if (typeof recomputeAssetCurrent !== 'function') {
     }
 }
 
+// ==========================================
+// 航司 canonical / alias map
+// 只用於 type === 'airline'
+// ==========================================
+const AIRLINE_ALIAS_MAP = {
+    // 1. 長榮航空 / 立榮航空 / Infinity MileageLands
+    [normalizeStr('長榮')]: '長榮航空',
+    [normalizeStr('長榮航空')]: '長榮航空',
+    [normalizeStr('立榮')]: '長榮航空',
+    [normalizeStr('立榮航空')]: '長榮航空',
+    [normalizeStr('無限萬哩遊')]: '長榮航空',
+    [normalizeStr('infinity mileagelands')]: '長榮航空',
+    [normalizeStr('eva')]: '長榮航空',
+    [normalizeStr('br')]: '長榮航空',
+
+    // 2. 國泰航空 / 亞洲萬里通
+    [normalizeStr('國泰')]: '國泰航空',
+    [normalizeStr('國泰航空')]: '國泰航空',
+    [normalizeStr('亞洲萬里通')]: '國泰航空',
+    [normalizeStr('亞萬')]: '國泰航空',
+    [normalizeStr('asiamiles')]: '國泰航空',
+    [normalizeStr('asia miles')]: '國泰航空',
+    [normalizeStr('cathay')]: '國泰航空',
+    [normalizeStr('cx')]: '國泰航空',
+
+    // 3. 新加坡航空 / 勝安 / 酷航 / KrisFlyer
+    [normalizeStr('新航')]: '新加坡航空',
+    [normalizeStr('新加坡航空')]: '新加坡航空',
+    [normalizeStr('勝安航空')]: '新加坡航空',
+    [normalizeStr('酷航')]: '新加坡航空',
+    [normalizeStr('krisflyer')]: '新加坡航空',
+    [normalizeStr('sq')]: '新加坡航空',
+
+    // 4. 日本航空 / JAL
+    [normalizeStr('日航')]: '日本航空',
+    [normalizeStr('日本航空')]: '日本航空',
+    [normalizeStr('jal')]: '日本航空',
+    [normalizeStr('jal mileage bank')]: '日本航空',
+    [normalizeStr('jl')]: '日本航空',
+
+    // 5. 亞航
+    [normalizeStr('亞航')]: '亞航',
+    [normalizeStr('airasia')]: '亞航',
+    [normalizeStr('airasia rewards')]: '亞航',
+
+    // 6. 阿聯酋航空 / Skywards
+    [normalizeStr('阿聯酋')]: '阿聯酋航空',
+    [normalizeStr('阿聯酋航空')]: '阿聯酋航空',
+    [normalizeStr('skywards')]: '阿聯酋航空',
+    [normalizeStr('emirates')]: '阿聯酋航空',
+    [normalizeStr('ek')]: '阿聯酋航空',
+
+    // 7. 加拿大航空 / Aeroplan
+    [normalizeStr('加航')]: '加拿大航空',
+    [normalizeStr('加拿大航空')]: '加拿大航空',
+    [normalizeStr('aeroplan')]: '加拿大航空',
+    [normalizeStr('air canada')]: '加拿大航空',
+    [normalizeStr('ac')]: '加拿大航空',
+
+    // 8. 哥倫比亞航空 / LifeMiles
+    [normalizeStr('哥倫比亞航空')]: '哥倫比亞航空',
+    [normalizeStr('lifemiles')]: '哥倫比亞航空',
+    [normalizeStr('avianca')]: '哥倫比亞航空',
+    [normalizeStr('av')]: '哥倫比亞航空',
+
+    // 9. 法航荷航 / Flying Blue
+    [normalizeStr('法航')]: '法航荷航藍天飛行',
+    [normalizeStr('荷航')]: '法航荷航藍天飛行',
+    [normalizeStr('法航與荷航')]: '法航荷航藍天飛行',
+    [normalizeStr('藍天飛行')]: '法航荷航藍天飛行',
+    [normalizeStr('flying blue')]: '法航荷航藍天飛行',
+    [normalizeStr('air france')]: '法航荷航藍天飛行',
+    [normalizeStr('klm')]: '法航荷航藍天飛行',
+
+    // 10. 海南航空 / 金鵬俱樂部
+    [normalizeStr('海南航空')]: '海南航空',
+    [normalizeStr('金鵬俱樂部')]: '海南航空',
+    [normalizeStr('fortuna')]: '海南航空',
+    [normalizeStr('hainan airlines')]: '海南航空',
+    [normalizeStr('hu')]: '海南航空',
+
+    // 11. 澳洲航空 / Qantas
+    [normalizeStr('澳航')]: '澳洲航空',
+    [normalizeStr('澳洲航空')]: '澳洲航空',
+    [normalizeStr('qantas')]: '澳洲航空',
+    [normalizeStr('qantas frequent flyer')]: '澳洲航空',
+    [normalizeStr('qf')]: '澳洲航空',
+
+    // 12. 卡達航空 / Privilege Club / Avios
+    [normalizeStr('卡達')]: '卡達航空',
+    [normalizeStr('卡達航空')]: '卡達航空',
+    [normalizeStr('貴賓俱樂部')]: '卡達航空',
+    [normalizeStr('privilege club')]: '卡達航空',
+    [normalizeStr('avios')]: '卡達航空',
+    [normalizeStr('qr')]: '卡達航空',
+
+    // 13. 聯合航空 / MileagePlus
+    [normalizeStr('聯合航空')]: '聯合航空',
+    [normalizeStr('前程萬里')]: '聯合航空',
+    [normalizeStr('前程萬里飛行計劃')]: '聯合航空',
+    [normalizeStr('mileageplus')]: '聯合航空',
+    [normalizeStr('united')]: '聯合航空',
+    [normalizeStr('ua')]: '聯合航空',
+
+    // 14. 越南航空 / Lotusmiles
+    [normalizeStr('越南航空')]: '越南航空',
+    [normalizeStr('微笑蓮花')]: '越南航空',
+    [normalizeStr('lotusmiles')]: '越南航空',
+    [normalizeStr('vn')]: '越南航空',
+
+    // 15. 土耳其航空 / Miles&Smiles
+    [normalizeStr('土耳其航空')]: '土耳其航空',
+    [normalizeStr('miles&smiles')]: '土耳其航空',
+    [normalizeStr('miles and smiles')]: '土耳其航空',
+    [normalizeStr('turkish airlines')]: '土耳其航空',
+    [normalizeStr('tk')]: '土耳其航空',
+
+    // 16. 中華航空 / 華信航空 / 華夏哩程
+    [normalizeStr('華航')]: '中華航空',
+    [normalizeStr('中華航空')]: '中華航空',
+    [normalizeStr('華信')]: '中華航空',
+    [normalizeStr('華信航空')]: '中華航空',
+    [normalizeStr('華夏哩程')]: '中華航空',
+    [normalizeStr('華夏哩程酬賓計劃')]: '中華航空',
+    [normalizeStr('china airlines')]: '中華航空',
+    [normalizeStr('ci')]: '中華航空'
+};
+
+// ==========================================
+// 航司名稱 canonical 化
+// 只給 airline 資產用
+// ==========================================
+function canonicalizeAirlineName(name) {
+    const raw = String(name || '').trim();
+    if (!raw) return '';
+    const norm = normalizeStr(raw);
+    return AIRLINE_ALIAS_MAP[norm] || raw;
+}
+
+// ==========================================
+// 只限 airline 資產的匹配 helper
+// ==========================================
+function findAirlineAssetByAlias(warehouse, inputName) {
+    if (!Array.isArray(warehouse)) return null;
+
+    const canonical = canonicalizeAirlineName(inputName);
+    const canonicalNorm = normalizeStr(canonical);
+
+    return warehouse.find(a =>
+        a &&
+        typeof a === 'object' &&
+        a.type === 'airline' &&
+        normalizeStr(canonicalizeAirlineName(a.targetAirline || a.name || '')) === canonicalNorm
+    ) || null;
+}
+
 function renderWarehouse() {
     const db = loadDB(); const con = document.getElementById('warehouse-list'); if(!con) return; con.innerHTML = '';
     const chkCon = document.getElementById('planner-asset-container'); if(chkCon) chkCon.innerHTML = '';
@@ -103,39 +259,25 @@ function addNativeAsset() {
             return alert('DEBUG: 找不到 native-airline-name 或 native-current 欄位');
         }
 
-        const name = nameEl.value.trim();
+        const rawName = nameEl.value.trim();
         const qty = parseInt(qtyEl.value, 10);
 
-        if(!name || isNaN(qty) || qty <= 0) return showCustomAlert('請填寫完整資訊');
+        if(!rawName || isNaN(qty) || qty <= 0) return showCustomAlert('請填寫完整資訊');
 
         const db = loadDB();
         if (!db || !Array.isArray(db.warehouse)) {
             return alert('DEBUG: loadDB() 回傳異常，db.warehouse 不是陣列');
         }
 
-        let exactAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && a.targetAirline === name);
-
-        if (!exactAsset) {
-            let similarAsset = db.warehouse.find(a =>
-                a &&
-                typeof a === 'object' &&
-                a.type === 'airline' &&
-                typeof a.targetAirline === 'string' &&
-                (a.targetAirline.includes(name) || name.includes(a.targetAirline))
-            );
-
-            if (similarAsset && confirm(`系統偵測到相似的航空資產「${similarAsset.targetAirline}」，是否要進行歸戶合併？\n(若選取消，將建立獨立新帳戶)`)) {
-                exactAsset = similarAsset;
-            }
-        }
-
+        const finalAirlineName = canonicalizeAirlineName(rawName);
+        let exactAsset = findAirlineAssetByAlias(db.warehouse, finalAirlineName);
         const timestamp = Date.now();
 
         if(!exactAsset) {
             exactAsset = {
                 type: 'airline',
-                targetAirline: name,
-                name: name,
+                targetAirline: finalAirlineName,
+                name: finalAirlineName,
                 current: 0,
                 unitPoints: 1,
                 unitMiles: 1,
@@ -152,7 +294,7 @@ function addNativeAsset() {
             exactAsset.batches = [];
         }
 
-        const safeNameSnippet = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
+        const safeNameSnippet = finalAirlineName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
         const seq = exactAsset.batches.length;
         const batchId = `txn_${timestamp}_${seq}_${safeNameSnippet}`;
 
@@ -163,7 +305,7 @@ function addNativeAsset() {
             created_at: timestamp,
             source_type: 'manual_input',
             ref_id: null,
-            note: '手動存入航空哩程'
+            note: `手動存入航空哩程（原始輸入：${rawName}）`
         });
 
         recomputeAssetCurrent(exactAsset);
@@ -314,33 +456,9 @@ function addTransferAsset() {
 
     sourceAsset.current = currentBalance - qty;
 
-    const rawNormTgt = normalizeStr(tgt);
-    let finalTgtStr = tgt;
+    const finalTgtStr = canonicalizeAirlineName(tgt);
 
-    const TARGET_ALIAS_MAP = {
-        [normalizeStr('華航')]: '中華航空',
-        [normalizeStr('中華航空')]: '中華航空',
-        [normalizeStr('國泰')]: '國泰航空',
-        [normalizeStr('國泰航空')]: '國泰航空',
-        [normalizeStr('亞萬')]: '國泰航空',
-        [normalizeStr('亞洲萬里通')]: '國泰航空',
-        [normalizeStr('國泰航空(亞洲萬里通)')]: '國泰航空',
-        [normalizeStr('長榮')]: '長榮航空',
-        [normalizeStr('長榮航空')]: '長榮航空'
-    };
-
-    if (TARGET_ALIAS_MAP[rawNormTgt]) {
-        finalTgtStr = TARGET_ALIAS_MAP[rawNormTgt];
-    }
-
-    let targetAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && a.targetAirline === finalTgtStr);
-    if (!targetAsset) {
-        const finalNormTgt = normalizeStr(finalTgtStr);
-        targetAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && normalizeStr(a.targetAirline) === finalNormTgt);
-        if (!targetAsset) {
-            targetAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && typeof a.targetAirline === 'string' && (normalizeStr(a.targetAirline).includes(finalNormTgt) || finalNormTgt.includes(normalizeStr(a.targetAirline))));
-        }
-    }
+    let targetAsset = findAirlineAssetByAlias(db.warehouse, finalTgtStr);
 
     let finalTargetName = finalTgtStr;
     if (!targetAsset) {
