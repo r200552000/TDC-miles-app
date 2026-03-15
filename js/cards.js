@@ -38,9 +38,7 @@ function bindCampaignWarnings() {
 若不確定是否符合，請按「取消」，系統會先按一般回饋計算。`;
 
             const ok = confirm(msg);
-            if (!ok) {
-                this.checked = false;
-            }
+            if (!ok) this.checked = false;
         });
     }
 
@@ -60,32 +58,9 @@ function bindCampaignWarnings() {
 若不確定是否符合，請按「取消」，系統會先按一般回饋計算。`;
 
             const ok = confirm(msg);
-            if (!ok) {
-                this.checked = false;
-            }
+            if (!ok) this.checked = false;
         });
     }
-}
-
-// ==========================================
-// 推薦卡片下方提醒文字
-// ==========================================
-function getCardWarningText(cardId, ctx) {
-    if (!ctx) return '';
-
-    if (cardId === 'taishin_cx' && ctx.isFlyMode) {
-        return '⚠️ 已依越飛越有哩資格試算；請再確認台幣、台灣出發、非套票/獎勵票、非行動支付等條件。';
-    }
-
-    if ((cardId === 'ctbc_ci' || cardId === 'ctbc_ci_inf') && ctx.isForeign) {
-        return '⚠️ 中信海外加碼僅限海外實體面對面交易；網購、條碼、第三方支付通常不適用。海外實體店面現場使用 Apple Pay / Google Pay / Samsung Pay 可能適用。';
-    }
-
-    if ((cardId === 'ctbc_ci' || cardId === 'ctbc_ci_inf') && ['agoda', 'booking', 'expedia', 'hotels', 'trip', 'airbnb'].some(w => (ctx.kwKey || '').includes(w))) {
-        return '⚠️ 中信指定訂房平台加碼需為國外訂房，且帳單同時列示國外交易手續費；不是只要刷到訂房平台就一定適用。';
-    }
-
-    return '';
 }
 
 // ==========================================
@@ -165,21 +140,21 @@ function calculate() {
     }
 
     currentResults = [];
-    db.settings.enabledBuiltins.forEach(cardId => {
+
+    (db.settings.enabledBuiltins || []).forEach(cardId => {
         if (CARD_RULES[cardId]) {
             const res = CARD_RULES[cardId].calc(ctx);
             currentResults.push({
                 id: cardId,
                 name: CARD_RULES[cardId].name,
                 ...res,
-                twdSpend,
-                twdBase,
-                _ctxSnapshot: { ...ctx }
+                twdSpend: twdSpend,
+                twdBase: twdBase
             });
         }
     });
 
-    db.customCards.forEach(c => {
+    (db.customCards || []).forEach(c => {
         if (!c || typeof c !== 'object') return;
         let div = ctx.isForeign ? c.forRate : c.domRate;
 
@@ -192,8 +167,7 @@ function calculate() {
                 consumedQuota: 0,
                 isWarning: true,
                 twdSpend: ctx.twdSpend,
-                twdBase: ctx.twdBase,
-                _ctxSnapshot: { ...ctx }
+                twdBase: ctx.twdBase
             });
             return;
         }
@@ -225,14 +199,14 @@ function calculate() {
             consumedQuota: consumedQuota,
             isWarning: isWarning,
             twdSpend: ctx.twdSpend,
-            twdBase: ctx.twdBase,
-            _ctxSnapshot: { ...ctx }
+            twdBase: ctx.twdBase
         });
     });
 
     currentResults.sort((a, b) => Math.abs(b.miles) - Math.abs(a.miles));
 
     renderResults(currentResults);
+
     const targetVal = document.getElementById('redemption-target').value;
     const isRefund = currentResults.length > 0 && currentResults[0].twdBase < 0;
     const advice = getTacticalCardAdvice(currentResults, targetVal, isRefund);
@@ -329,8 +303,11 @@ function renderTacticalAdvice(adviceObj) {
 
 function renderResults(list) {
     const con = document.getElementById('cards-container');
+    if (!con) return;
+
     con.innerHTML = '';
-    document.getElementById('result-area').style.display = 'block';
+    const resultArea = document.getElementById('result-area');
+    if (resultArea) resultArea.style.display = 'block';
 
     list.forEach((c, idx) => {
         const isWinner = idx === 0 && !c.isWarning;
@@ -342,11 +319,6 @@ function renderResults(list) {
             trueCostHtml = `<span class="badge bg-light text-secondary border mt-1" style="font-size:0.7rem;">實質成本 $${trueCost}/哩</span>`;
         }
 
-        const warningText = getCardWarningText(c.id, c._ctxSnapshot);
-        const warningHtml = warningText
-            ? `<div class="small text-danger fw-bold mt-2">${escapeHTML(warningText)}</div>`
-            : '';
-
         const div = document.createElement('div');
         div.className = `plan-card ${isWinner ? 'plan-winner' : ''} ${c.isWarning ? 'plan-warning' : ''}`;
         div.innerHTML = `
@@ -355,7 +327,6 @@ function renderResults(list) {
             <div>
                 <h4 class="card-name">${c.name}</h4>
                 <div class="text-muted small font-hand mt-1">${c.note}</div>
-                ${warningHtml}
                 ${trueCostHtml}
             </div>
             <div class="tdc-text-end flex-shrink-0 ms-2">
@@ -384,8 +355,8 @@ function renderResults(list) {
 }
 
 // ==========================================
-// 頁面載入時綁定活動提醒
+// 提供手動初始化用（避免某些載入順序問題）
 // ==========================================
-document.addEventListener('DOMContentLoaded', function () {
+function initCalcWarnings() {
     bindCampaignWarnings();
-});
+}
