@@ -35,6 +35,11 @@ if (typeof recomputeAssetCurrent !== 'function') {
 }
 
 // ==========================================
+// 展開中的 batch 明細卡片索引
+// ==========================================
+let expandedBatchCards = new Set();
+
+// ==========================================
 // 航司 canonical / alias map
 // 只用於 type === 'airline'
 // ==========================================
@@ -282,6 +287,92 @@ function mergeLegacyTransferAliases(db) {
     return changed;
 }
 
+// ==========================================
+// batch 明細 helper
+// ==========================================
+function formatBatchSourceType(sourceType) {
+    const map = {
+        manual_input: '手動存入',
+        auto_import: '批次入庫',
+        transfer_in: '轉點轉入',
+        transfer_out: '轉點轉出',
+        legacy_merge: '舊版歸戶',
+        system_migration: '系統結轉'
+    };
+    return map[sourceType] || sourceType || '未知來源';
+}
+
+function formatBatchDirection(direction) {
+    if (direction === 'in') return '＋';
+    if (direction === 'out') return '－';
+    return '•';
+}
+
+function formatBatchDate(ts) {
+    const val = Number(ts);
+    if (!val) return '未知時間';
+    try {
+        return new Date(val).toLocaleString();
+    } catch (e) {
+        return '未知時間';
+    }
+}
+
+function toggleBatchDetails(idx) {
+    if (expandedBatchCards.has(idx)) expandedBatchCards.delete(idx);
+    else expandedBatchCards.add(idx);
+    renderWarehouse();
+}
+
+function renderBatchDetails(item, idx) {
+    if (!expandedBatchCards.has(idx)) return '';
+
+    const batches = Array.isArray(item.batches) ? [...item.batches] : [];
+    if (batches.length === 0) {
+        return `
+        <div class="px-3 pb-3">
+            <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; padding:12px;" class="small text-muted">
+                尚無批次明細
+            </div>
+        </div>`;
+    }
+
+    const sorted = batches.sort((a, b) => {
+        const ta = Number(a && a.created_at) || 0;
+        const tb = Number(b && b.created_at) || 0;
+        return tb - ta;
+    });
+
+    let html = `<div class="px-3 pb-3"><div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; overflow:hidden;">`;
+
+    sorted.forEach((batch, i) => {
+        if (!batch || typeof batch !== 'object') return;
+
+        const direction = batch.direction === 'out' ? 'out' : 'in';
+        const amt = Math.abs(Number(batch.amount) || 0);
+        const sign = formatBatchDirection(direction);
+        const sourceText = escapeHTML(formatBatchSourceType(batch.source_type));
+        const noteText = escapeHTML(batch.note || '');
+        const refText = batch.ref_id ? escapeHTML(String(batch.ref_id)) : '';
+        const timeText = escapeHTML(formatBatchDate(batch.created_at));
+        const amountClass = direction === 'out' ? 'text-danger' : 'text-success';
+
+        html += `
+        <div style="padding:12px 14px; ${i !== sorted.length - 1 ? 'border-bottom:1px solid #e2e8f0;' : ''}">
+            <div class="tdc-flex tdc-justify-between tdc-align-center">
+                <div class="small fw-bold text-dark">${sourceText}</div>
+                <div class="small fw-bold ${amountClass}">${sign}${amt.toLocaleString()}</div>
+            </div>
+            <div class="small text-muted mt-1">${timeText}</div>
+            ${noteText ? `<div class="small text-dark mt-1">${noteText}</div>` : ''}
+            ${refText ? `<div class="small text-secondary mt-1">Ref: ${refText}</div>` : ''}
+        </div>`;
+    });
+
+    html += `</div></div>`;
+    return html;
+}
+
 function renderWarehouse() {
     const db = loadDB();
     if (mergeLegacyTransferAliases(db)) {
@@ -322,12 +413,17 @@ function renderWarehouse() {
         }
 
         const safeName = (typeof item.name === 'string' && item.name.trim() !== '') ? item.name.trim() : '未命名資產';
+        const batchCount = Array.isArray(item.batches) ? item.batches.length : 0;
+        const detailBtnText = expandedBatchCards.has(idx) ? '收合' : '明細';
 
         con.innerHTML += `
         <div class="airline-group-card tdc-mb-3">
             <div class="airline-header">
                 <div class="fw-bold fs-5 text-primary-dark">${escapeHTML(safeName)}</div>
-                <button class="btn btn-sm btn-outline-danger rounded-circle p-1 tdc-flex" onclick="delWarehouseAsset(${idx})"><svg class="lucide" style="width:14px;height:14px;"><use href="#icon-trash"/></svg></button>
+                <div class="tdc-flex tdc-align-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" style="border-radius:999px; font-size:0.72rem;" onclick="toggleBatchDetails(${idx})">${detailBtnText} (${batchCount})</button>
+                    <button class="btn btn-sm btn-outline-danger rounded-circle p-1 tdc-flex" onclick="delWarehouseAsset(${idx})"><svg class="lucide" style="width:14px;height:14px;"><use href="#icon-trash"/></svg></button>
+                </div>
             </div>
             <div class="p-3 bg-white">
                 <div class="tdc-flex tdc-justify-between tdc-align-center">
@@ -336,6 +432,7 @@ function renderWarehouse() {
                 </div>
                 ${displaySubText}
             </div>
+            ${renderBatchDetails(item, idx)}
         </div>`;
 
         const safeType = ['raw', 'airline', 'transfer'].includes(item.type) ? item.type : 'raw';
