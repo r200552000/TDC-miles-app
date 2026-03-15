@@ -116,37 +116,62 @@ function getTacticalCardAdvice(results, target, isRefund) {
     }
 
     const primary = results[0];
-    const advice = {
+    let primaryId = (primary.id || '').toLowerCase();
+
+    let targetPool = '';
+    let targetName = '';
+    if (target === 'CI') { targetPool = 'CI'; targetName = '華航體系'; }
+    else if (target === 'CX' || target === 'AM' || target === 'ASIAMILES') { targetPool = 'CX'; targetName = '國泰體系'; }
+    else if (target === 'BR' || target === 'EVA') { targetPool = 'BR'; targetName = '長榮體系'; }
+    else if (target === 'AM_BR') { targetPool = 'MIXED'; targetName = '混合目標'; }
+    else { targetPool = 'NONE'; targetName = '無明確目標'; }
+
+    let cardPool = 'OTHER';
+    let cardPoolName = '其他體系';
+    if (primaryId.includes('taishin_cx')) { cardPool = 'CX'; cardPoolName = '國泰體系'; }
+    else if (primaryId.includes('ctbc_ci')) { cardPool = 'CI'; cardPoolName = '華航體系'; }
+    else if (primaryId.includes('hsbc_')) { cardPool = 'TRANSFER'; cardPoolName = '可轉點池'; }
+
+    let advisePool = cardPoolName;
+    let strategyReason = '';
+
+    if (targetPool === 'CI' || targetPool === 'CX' || targetPool === 'BR') {
+        if (cardPool === targetPool) {
+            advisePool = cardPoolName;
+            strategyReason = `你目前的兌換目標為【${targetName}】，以此卡集中資源填補缺口，累積效率最高。`;
+        } else if (cardPool === 'TRANSFER') {
+            advisePool = '可轉點池';
+            strategyReason = `雖然你有明確目標，但本筆先累積【可轉點池】，能保留後續轉入【${targetName}】的最大彈性。`;
+        } else {
+            advisePool = cardPoolName;
+            strategyReason = `雖然你的目標偏向【${targetName}】，但本筆消費若不集中在【${cardPoolName}】會大幅折損回饋率，建議此筆獨立集中累積。`;
+        }
+    } else if (targetPool === 'MIXED') {
+        if (cardPool === 'TRANSFER') {
+            advisePool = '可轉點池';
+            strategyReason = `在雙目標混合下，本筆先累積【可轉點池】能保留最大的兌換與轉點彈性。`;
+        } else {
+            advisePool = cardPoolName;
+            strategyReason = `在混合目標下，這筆大額消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
+        }
+    } else {
+        if (cardPool === 'TRANSFER') {
+            advisePool = '可轉點池';
+            strategyReason = `目前尚未決定單一目標，本筆先累積【可轉點池】最安全，避免太早將哩程綁死在單一航司。`;
+        } else {
+            advisePool = cardPoolName;
+            strategyReason = `這筆消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
+        }
+    }
+
+    let warningMsg = primary.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null;
+    
+    return {
+        targetPool: advisePool,
         primaryCard: primary.name,
-        primaryReason: primary.isWarning ? "雖達上限，但綜合評估仍為當下最高" : "回饋率最高，且額度健康",
-        secondaryCard: null,
-        secondaryReason: null,
-        warning: primary.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null,
-        targetHint: null
+        strategyReason: strategyReason,
+        warning: warningMsg
     };
-
-    for (let i = 1; i < results.length; i++) {
-        const card = results[i];
-        if (!card.isWarning && card.miles > 0 && card.name !== primary.name) {
-            advice.secondaryCard = card.name;
-            advice.secondaryReason = "若需分刷，此為額度健康的最佳備案";
-            break;
-        }
-    }
-
-    if (primary.id && typeof primary.id === 'string' && !primary.id.startsWith('custom_')) {
-        const idLower = primary.id.toLowerCase();
-        const isCxSystem = idLower.includes('taishin_cx');
-        const isCiSystem = idLower.includes('ctbc_ci');
-
-        if (target === 'CI' && isCxSystem) {
-            advice.targetHint = "⚠️ 最佳卡片偏向國泰體系，請留意是否支援轉點至華航";
-        } else if (target === 'AM_BR' && isCiSystem) {
-            advice.targetHint = "⚠️ 最佳卡片偏向華航體系，請留意是否支援轉點至亞萬/長榮";
-        }
-    }
-
-    return advice;
 }
 
 function renderTacticalAdvice(adviceObj) {
@@ -165,31 +190,13 @@ function renderTacticalAdvice(adviceObj) {
                 <svg class="lucide me-1 text-success"><use href="#icon-sparkle"/></svg>
                 <h6 class="fw-bold tdc-m-0 text-success">戰術主攻建議</h6>
             </div>
-            <div class="fw-bold text-dark" style="font-size: 1.05rem;">🎯 首選：${escapeHTML(adviceObj.primaryCard)}</div>
-            <div class="small text-secondary tdc-mb-2">💡 ${escapeHTML(adviceObj.primaryReason)}</div>
+            <div class="fw-bold text-dark" style="font-size: 1.05rem;">🎯 建議先補：【${escapeHTML(adviceObj.targetPool)}】</div>
+            <div class="fw-bold text-dark mt-1" style="font-size: 0.95rem;">💳 主攻卡片：${escapeHTML(adviceObj.primaryCard)}</div>
+            <div class="small text-secondary mt-2">💡 理由：${escapeHTML(adviceObj.strategyReason)}</div>
     `;
 
     if (adviceObj.warning) {
-        html += `<div class="small bg-white p-2 rounded-3 border border-warning text-danger fw-bold tdc-mb-2">🚨 ${escapeHTML(adviceObj.warning)}</div>`;
-    }
-
-    if (adviceObj.targetHint) {
-        html += `<div class="small bg-white p-2 rounded-3 border border-danger text-danger fw-bold tdc-mb-2">${escapeHTML(adviceObj.targetHint)}</div>`;
-    }
-
-    if (adviceObj.secondaryCard) {
-        html += `
-            <div class="border-top pt-2 mt-2">
-                <div class="fw-bold text-dark" style="font-size: 0.95rem;">🛡️ 備援：${escapeHTML(adviceObj.secondaryCard)}</div>
-                <div class="small text-secondary">💡 ${escapeHTML(adviceObj.secondaryReason)}</div>
-            </div>
-        `;
-    } else {
-        html += `
-            <div class="border-top pt-2 mt-2">
-                <div class="small text-secondary">💡 目前沒有更健康的備援卡可建議</div>
-            </div>
-        `;
+        html += `<div class="small bg-white p-2 rounded-3 border border-warning text-danger fw-bold mt-2">🚨 ${escapeHTML(adviceObj.warning)}</div>`;
     }
 
     html += `</div>`;
