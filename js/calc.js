@@ -205,6 +205,15 @@ function renderResults(list) {
         const isWinner = idx === 0 && !c.isWarning;
         const integrityColor = '#10b981';
 
+        let shortHint = '';
+        if (c.id === 'taishin_cx' && c.note.includes('越飛有哩')) {
+            shortHint = '<div class="text-warning mt-1" style="font-size: 0.75rem; line-height: 1.4;">⚠️ 已依越飛越有哩資格試算；請再確認台幣、台灣出發、非套票/獎勵票、非行動支付等條件。</div>';
+        } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(c.id) && (c.note.includes('海外') || c.note.includes('生日海外實體'))) {
+            shortHint = '<div class="text-warning mt-1" style="font-size: 0.75rem; line-height: 1.4;">⚠️ 中信海外加碼僅限海外實體面對面交易；網購、條碼、第三方支付通常不適用。海外實體店面現場使用 Apple Pay / Google Pay / Samsung Pay 可能適用。</div>';
+        } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(c.id) && c.note.includes('訂房平台')) {
+            shortHint = '<div class="text-warning mt-1" style="font-size: 0.75rem; line-height: 1.4;">⚠️ 中信指定訂房平台加碼需為國外訂房，且帳單同時列示國外交易手續費；不是只要刷到訂房平台就一定適用。</div>';
+        }
+
         let trueCostHtml = '';
         if (c.miles > 0) {
             let trueCost = (c.twdSpend / c.miles).toFixed(2);
@@ -217,7 +226,7 @@ function renderResults(list) {
         <div class="tdc-flex tdc-justify-between align-items-start">
             <div>
                 <h4 class="card-name">${c.name}</h4>
-                <div class="text-muted small font-hand mt-1">${c.note}</div>
+                <div class="text-muted small font-hand mt-1">${c.note}${shortHint}</div>
                 ${trueCostHtml}
             </div>
             <div class="tdc-text-end flex-shrink-0 ms-2">
@@ -244,3 +253,64 @@ function renderResults(list) {
         linksContainer.style.display = (list && list.length > 0) ? 'flex' : 'none';
     }
 }
+
+function initToggleConfirms() {
+    const flyModeCheckbox = document.getElementById('flyMode');
+    const birthdayModeCheckbox = document.getElementById('birthdayMode');
+
+    if (flyModeCheckbox && !flyModeCheckbox.dataset.confirmBound) {
+        flyModeCheckbox.dataset.confirmBound = '1';
+        flyModeCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                const msg = "請先確認符合以下條件，再開啟「越飛越有哩」：\n\n" +
+                            "1. 國泰官網購票\n" +
+                            "• 需為國泰航空台灣官網或指定客服中心訂票\n" +
+                            "• 需為新台幣付款\n" +
+                            "• 需為從台灣出發的付費機票\n" +
+                            "• 不適用套票、獎勵機票\n" +
+                            "• 不適用國泰 App 搭配 Apple Pay、Google 錢包等行動支付付款\n\n" +
+                            "2. 指定消費類別\n" +
+                            "• 海外實體商店\n" +
+                            "• 指定訂房網站：Agoda、Booking、Expedia、Hotels.com\n" +
+                            "• 旅遊體驗：KKday、Klook\n" +
+                            "• 免稅商店：昇恆昌、采盟、海外實體免稅商店\n\n" +
+                            "3. 付款方式限制\n" +
+                            "• 若使用 Apple Pay、Google 錢包、LINE Pay、街口、Pi 錢包、PayPal、Fami Pay、icash Pay、悠遊付、QR code 掃碼等付款方式，通常不適用\n\n" +
+                            "4. 其他活動資格\n" +
+                            "• 若活動另有資格要求（例如自動扣繳等），也請自行確認符合\n\n" +
+                            "若不確定是否符合，請按「取消」，系統會先按一般回饋計算。";
+                
+                if (!confirm(msg)) {
+                    this.checked = false;
+                }
+            }
+            if (typeof calculate === 'function') {
+                calculate();
+            }
+        });
+    }
+
+    if (birthdayModeCheckbox && !birthdayModeCheckbox.dataset.confirmBound) {
+        birthdayModeCheckbox.dataset.confirmBound = '1';
+        birthdayModeCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                const msg = "請先確認符合以下條件，再開啟「生日月」：\n\n" +
+                            "1. 請先自行確認該卡生日月加碼活動目前有效\n" +
+                            "2. 若活動需要登錄，請先完成登錄\n" +
+                            "3. 若活動有卡等、身分、期間或其他限制，也請自行確認符合\n" +
+                            "4. 若活動限定海外實體、指定通路或特定付款方式，需同時符合\n" +
+                            "5. 實際回饋仍以銀行最終入帳資料與活動規則認定為準\n\n" +
+                            "若不確定是否符合，請按「取消」，系統會先按一般回饋計算。";
+                
+                if (!confirm(msg)) {
+                    this.checked = false;
+                }
+            }
+            if (typeof calculate === 'function') {
+                calculate();
+            }
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initToggleConfirms);
