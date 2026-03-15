@@ -194,6 +194,7 @@ const CARD_RULES = {
             } else if (
                 ctx.isFlyMode &&
                 ctx.cat !== 'flight_ci' &&
+                ctx.cat !== 'flight_cx' &&
                 !isMobilePay &&
                 (
                     ['agoda', 'booking', 'klook'].some(w => ctx.kwKey.includes(w)) ||
