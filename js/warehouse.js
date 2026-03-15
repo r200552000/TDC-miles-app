@@ -77,12 +77,57 @@ function addNativeAsset() {
 }
 
 function addRawAsset() {
-    const name = document.getElementById('raw-point-name').value.trim(); const qty = parseInt(document.getElementById('raw-point-current').value);
+    const name = document.getElementById('raw-point-name').value.trim();
+    const qty = parseInt(document.getElementById('raw-point-current').value);
+
     if(!name || isNaN(qty) || qty <= 0) return showCustomAlert('請填寫完整資訊');
-    const db = loadDB(); let asset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'raw' && a.name === name);
-    if(!asset) { asset = { type: 'raw', targetAirline: '無', name: name, current: 0, unitPoints: 1, unitMiles: 1, bonusReq:0, bonusGive:0 }; db.warehouse.push(asset); }
-    asset.current = (Number(asset.current) || 0) + qty; saveDB(db);
-    clearInput('raw-point-name'); clearInput('raw-point-current'); renderWarehouse(); showCustomAlert('✅ 通用積分存入成功！');
+
+    const db = loadDB();
+    let asset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'raw' && a.name === name);
+    const timestamp = Date.now();
+
+    if(!asset) {
+        asset = {
+            type: 'raw',
+            targetAirline: '無',
+            name: name,
+            current: 0,
+            unitPoints: 1,
+            unitMiles: 1,
+            bonusReq: 0,
+            bonusGive: 0,
+            schema_version: 2,
+            created_at: timestamp,
+            batches: []
+        };
+        db.warehouse.push(asset);
+    }
+
+    if (!Array.isArray(asset.batches)) {
+        asset.batches = [];
+    }
+
+    const safeNameSnippet = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
+    const seq = asset.batches.length;
+    const batchId = `txn_${timestamp}_${seq}_${safeNameSnippet}`;
+
+    asset.batches.push({
+        batch_id: batchId,
+        direction: 'in',
+        amount: Math.abs(qty),
+        created_at: timestamp,
+        source_type: 'manual_input',
+        ref_id: null,
+        note: '手動存入'
+    });
+
+    recomputeAssetCurrent(asset);
+    saveDB(db);
+
+    clearInput('raw-point-name');
+    clearInput('raw-point-current');
+    renderWarehouse();
+    showCustomAlert('✅ 通用積分存入成功！');
 }
 
 function addTransferAsset() {
