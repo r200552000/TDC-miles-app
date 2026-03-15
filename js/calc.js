@@ -100,8 +100,8 @@ function calculate() {
         }
         currentResults.push({ id: c.id, name: escapeHTML(c.name), miles: miles, note: note, consumedQuota: consumedQuota, isWarning: isWarning, twdSpend: ctx.twdSpend, twdBase: ctx.twdBase });
     });
-    if (amt < 0) currentResults.sort((a,b) => a.miles - b.miles);
-    else currentResults.sort((a,b) => b.miles - a.miles);
+    
+    currentResults.sort((a, b) => Math.abs(b.miles) - Math.abs(a.miles));
 
     renderResults(currentResults);
     const targetVal = document.getElementById('redemption-target').value;
