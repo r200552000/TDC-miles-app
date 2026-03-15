@@ -53,29 +53,22 @@ const CARD_RULES = {
             let isBonus = false;
             let noteBase = '';
 
-            // 1. 生日海外實體
             if (ctx.isBirthday && ctx.isForeign && isTruePhysical) {
                 div = 6.6;
                 isBonus = true;
                 noteBase = '🎂 生日海外實體 $6.6';
-            }
-            // 2. 華航官網指定通路特例（這不是海外判定）
-            else if (ctx.cat === 'flight_ci') {
+            } else if (ctx.cat === 'flight_ci') {
                 div = 10;
                 isBonus = true;
                 noteBase = '✈️ 華航官網 $10';
-            }
-            // 3. 海外消費只看 isForeign
-            else if (ctx.isForeign) {
+            } else if (ctx.isForeign && isTravelOTA) {
+                div = 10;
+                isBonus = true;
+                noteBase = '🏨 國外訂房平台 $10';
+            } else if (ctx.isForeign) {
                 div = 10;
                 isBonus = true;
                 noteBase = '🌍 海外消費 $10';
-            }
-            // 4. OTA / 旅遊平台
-            else if (isTravelOTA) {
-                div = 10;
-                isBonus = true;
-                noteBase = '🏨 OTA/旅遊通路 $10';
             }
 
             if (isBonus) {
@@ -196,14 +189,9 @@ const CARD_RULES = {
             let isMobilePay = (ctx.pay === 'apple_pay' || ctx.pay === 'line_pay');
             let isBonus = false;
 
-            // 業務特例：
-            // 國泰官網台幣購票的「越飛有哩」只在使用者主動勾選資格成立時才啟用，
-            // 且需為非外幣、非行動支付。
             if (ctx.isFlyMode && ctx.cat === 'flight_cx' && !isMobilePay && !ctx.isForeign) {
                 isBonus = true;
-            }
-            // 其他越飛有哩適用情境
-            else if (
+            } else if (
                 ctx.isFlyMode &&
                 ctx.cat !== 'flight_ci' &&
                 !isMobilePay &&
@@ -257,7 +245,6 @@ const CARD_RULES = {
                 return { miles: 0, note: '🚫 非回饋', consumedQuota: 0 };
             }
 
-            // 只以 isForeign 判定海外，不可因 flight_* 類別直接視為海外
             let div = ctx.isForeign ? 10 : 18;
 
             return {
@@ -280,8 +267,6 @@ const CARD_RULES = {
             const isTruePhysical = !isOnline && (ctx.pay === 'physical' || ctx.pay === 'apple_pay');
             let isBonus = false, div = 18, noteBase = '';
 
-            // 業務特例：華航鼎尊卡於華航官網購票享指定通路加碼。
-            // 此條件不代表海外交易；海外判定仍以 ctx.isForeign 為準。
             if (ctx.cat === 'flight_ci') {
                 div = 9;
                 isBonus = true;
