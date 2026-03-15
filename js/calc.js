@@ -207,11 +207,11 @@ function renderResults(list) {
 
         let shortHint = '';
         if (c.id === 'taishin_cx' && c.note.includes('越飛有哩')) {
-            shortHint = '<div class="text-warning mt-1" style="font-size: 0.75rem; line-height: 1.4;">⚠️ 已依越飛越有哩資格試算；請再確認台幣、台灣出發、非套票/獎勵票、非行動支付等條件。</div>';
+            shortHint = '<div class="mt-2 px-2 py-2 rounded-3" style="font-size:0.78rem; line-height:1.5; color:#9a6700; background:#fff7d6; border:1px solid #f3d98b; font-weight:700;">⚠️ 已依越飛越有哩資格試算；請再確認台幣、台灣出發、非套票/獎勵票、非行動支付等條件。</div>';
         } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(c.id) && (c.note.includes('海外') || c.note.includes('生日海外實體'))) {
-            shortHint = '<div class="text-warning mt-1" style="font-size: 0.75rem; line-height: 1.4;">⚠️ 中信海外加碼僅限海外實體面對面交易；網購、條碼、第三方支付通常不適用。海外實體店面現場使用 Apple Pay / Google Pay / Samsung Pay 可能適用。</div>';
+            shortHint = '<div class="mt-2 px-2 py-2 rounded-3" style="font-size:0.78rem; line-height:1.5; color:#9a6700; background:#fff7d6; border:1px solid #f3d98b; font-weight:700;">⚠️ 中信海外加碼僅限海外實體面對面交易；網購、條碼、第三方支付通常不適用。海外實體店面現場使用 Apple Pay / Google Pay / Samsung Pay 可能適用。</div>';
         } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(c.id) && c.note.includes('訂房平台')) {
-            shortHint = '<div class="text-warning mt-1" style="font-size: 0.75rem; line-height: 1.4;">⚠️ 中信指定訂房平台加碼需為國外訂房，且帳單同時列示國外交易手續費；不是只要刷到訂房平台就一定適用。</div>';
+            shortHint = '<div class="mt-2 px-2 py-2 rounded-3" style="font-size:0.78rem; line-height:1.5; color:#9a6700; background:#fff7d6; border:1px solid #f3d98b; font-weight:700;">⚠️ 中信指定訂房平台加碼需為國外訂房，且帳單同時列示國外交易手續費；不是只要刷到訂房平台就一定適用。</div>';
         }
 
         let trueCostHtml = '';
@@ -226,7 +226,8 @@ function renderResults(list) {
         <div class="tdc-flex tdc-justify-between align-items-start">
             <div>
                 <h4 class="card-name">${c.name}</h4>
-                <div class="text-muted small font-hand mt-1">${c.note}${shortHint}</div>
+                <div class="text-muted small font-hand mt-1">${c.note}</div>
+                ${shortHint}
                 ${trueCostHtml}
             </div>
             <div class="tdc-text-end flex-shrink-0 ms-2">
