@@ -53,12 +53,21 @@ function loadDB() {
             }
         }
 
-        // --- Phase 1: 插入 Lazy Migration 攔截點 ---
-        // 提醒：請先確認 saveDB 只是單純儲存，無反向呼叫 loadDB 或其他副作用
+        // --- Phase 1: Lazy Migration ---
+        let needsSave = false;
+
         if (_migrateWarehouseToV2(db)) {
+            needsSave = true;
+        }
+
+        // --- Phase 1.5: 資料驗證與自動修復 ---
+        if (_repairWarehouseData(db)) {
+            needsSave = true;
+        }
+
+        if (needsSave) {
             saveDB(db);
         }
-        // -------------------------------------------
 
         return db;
     } catch (e) {
@@ -134,6 +143,35 @@ function normalizeStr(str) {
 }
 
 // ==========================================
+// 共用 helper：依 batches 重新計算 current
+// ==========================================
+function recomputeAssetCurrent(asset) {
+    if (!asset || typeof asset !== 'object') return;
+
+    if (!Array.isArray(asset.batches)) {
+        asset.current = Number(asset.current) || 0;
+        return;
+    }
+
+    let total = 0;
+
+    asset.batches.forEach(batch => {
+        if (!batch || typeof batch !== 'object') return;
+
+        let amt = Number(batch.amount);
+        if (isNaN(amt)) amt = 0;
+
+        if (batch.direction === 'in') {
+            total += Math.abs(amt);
+        } else if (batch.direction === 'out') {
+            total -= Math.abs(amt);
+        }
+    });
+
+    asset.current = total;
+}
+
+// ==========================================
 // 內部私有函式：資料庫 Schema V2 惰性升級 (Lazy Migration)
 // ==========================================
 function _migrateWarehouseToV2(db) {
@@ -149,11 +187,6 @@ function _migrateWarehouseToV2(db) {
         const hasValidBatchesArray = Array.isArray(asset.batches);
         const hasExistingBatches = hasValidBatchesArray && asset.batches.length > 0;
 
-        // 只有在：
-        // 1. schema_version >= 2
-        // 2. batches 是陣列
-        // 3. 若 current !== 0，batches 不能是空陣列
-        // 才視為健康 V2
         const isHealthyV2 =
             asset.schema_version >= 2 &&
             hasValidBatchesArray &&
@@ -163,18 +196,15 @@ function _migrateWarehouseToV2(db) {
 
         needsSave = true;
 
-        // 補齊版本標記
         asset.schema_version = 2;
         if (!asset.migrated_at) {
             asset.migrated_at = migrationTimestamp;
         }
 
-        // 若 batches 不是陣列，初始化為空陣列；若已存在則保留
         if (!hasValidBatchesArray) {
             asset.batches = [];
         }
 
-        // 只有在原本沒有 batches 或為空陣列時，才允許根據 current 補 migration batch
         const canCreateMigrationBatch = !hasExistingBatches;
 
         if (canCreateMigrationBatch) {
@@ -203,6 +233,109 @@ function _migrateWarehouseToV2(db) {
                     note: '舊版系統餘額結轉'
                 });
             }
+        }
+    });
+
+    return needsSave;
+}
+
+// ==========================================
+// 內部私有函式：倉庫資料驗證與自動修復 v1
+// 目標：補正 batches 結構、清理髒 batch、重算 current
+// ==========================================
+function _repairWarehouseData(db) {
+    if (!db || !Array.isArray(db.warehouse)) return false;
+
+    let needsSave = false;
+
+    db.warehouse.forEach((asset, idx) => {
+        if (!asset || typeof asset !== 'object') return;
+
+        // 1. batches 必須是陣列
+        if (!Array.isArray(asset.batches)) {
+            asset.batches = [];
+            needsSave = true;
+        }
+
+        // 2. 清理髒 batch：只保留有效 object
+        const originalLen = asset.batches.length;
+        asset.batches = asset.batches.filter(batch => batch && typeof batch === 'object');
+        if (asset.batches.length !== originalLen) {
+            needsSave = true;
+        }
+
+        // 3. 補 batch 基本欄位，清理非法值
+        asset.batches.forEach((batch, batchIdx) => {
+            let batchChanged = false;
+
+            if (batch.direction !== 'in' && batch.direction !== 'out') {
+                batch.direction = 'in';
+                batchChanged = true;
+            }
+
+            let amt = Number(batch.amount);
+            if (isNaN(amt)) {
+                batch.amount = 0;
+                batchChanged = true;
+            } else if (amt < 0) {
+                batch.amount = Math.abs(amt);
+                batchChanged = true;
+            }
+
+            if (!batch.batch_id) {
+                const rawName = String(asset.name || asset.targetAirline || 'UNK')
+                    .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '')
+                    .substring(0, 3) || 'UNK';
+                batch.batch_id = `repair_${Date.now()}_${idx}_${batchIdx}_${rawName}`;
+                batchChanged = true;
+            }
+
+            if (!batch.created_at || isNaN(Number(batch.created_at))) {
+                batch.created_at = Date.now();
+                batchChanged = true;
+            }
+
+            if (!batch.source_type) {
+                batch.source_type = 'unknown_repaired';
+                batchChanged = true;
+            }
+
+            if (!('ref_id' in batch)) {
+                batch.ref_id = null;
+                batchChanged = true;
+            }
+
+            if (!('note' in batch)) {
+                batch.note = '';
+                batchChanged = true;
+            }
+
+            if (batchChanged) needsSave = true;
+        });
+
+        // 4. 重算 current，若與原值不同則覆寫
+        const oldCurrent = Number(asset.current) || 0;
+        recomputeAssetCurrent(asset);
+        const newCurrent = Number(asset.current) || 0;
+
+        if (oldCurrent !== newCurrent) {
+            needsSave = true;
+        }
+
+        // 5. 若缺基本欄位，補最保守預設
+        if (!asset.schema_version || asset.schema_version < 2) {
+            asset.schema_version = 2;
+            needsSave = true;
+        }
+
+        if (!asset.name && asset.targetAirline) {
+            asset.name = asset.targetAirline;
+            needsSave = true;
+        }
+
+        if (!asset.targetAirline && asset.name) {
+            asset.targetAirline = asset.name;
+            needsSave = true;
         }
     });
 
