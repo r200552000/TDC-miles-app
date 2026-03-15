@@ -4,7 +4,7 @@
 
 // ==========================================
 // Fallback：若 utils.js 尚未成功載入 recomputeAssetCurrent
-// 則在此提供後備版本，避免 addRawAsset 失效
+// 則在此提供後備版本，避免新增資產流程失效
 // ==========================================
 if (typeof recomputeAssetCurrent !== 'function') {
     function recomputeAssetCurrent(asset) {
@@ -95,17 +95,87 @@ function renderWarehouse() {
 }
 
 function addNativeAsset() {
-    const name = document.getElementById('native-airline-name').value.trim(); const qty = parseInt(document.getElementById('native-current').value);
-    if(!name || isNaN(qty) || qty <= 0) return showCustomAlert('請填寫完整資訊');
-    const db = loadDB();
-    let exactAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && a.targetAirline === name);
-    if (!exactAsset) {
-        let similarAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && typeof a.targetAirline === 'string' && (a.targetAirline.includes(name) || name.includes(a.targetAirline)));
-        if (similarAsset && confirm(`系統偵測到相似的航空資產「${similarAsset.targetAirline}」，是否要進行歸戶合併？\n(若選取消，將建立獨立新帳戶)`)) exactAsset = similarAsset;
+    try {
+        const nameEl = document.getElementById('native-airline-name');
+        const qtyEl = document.getElementById('native-current');
+
+        if (!nameEl || !qtyEl) {
+            return alert('DEBUG: 找不到 native-airline-name 或 native-current 欄位');
+        }
+
+        const name = nameEl.value.trim();
+        const qty = parseInt(qtyEl.value, 10);
+
+        if(!name || isNaN(qty) || qty <= 0) return showCustomAlert('請填寫完整資訊');
+
+        const db = loadDB();
+        if (!db || !Array.isArray(db.warehouse)) {
+            return alert('DEBUG: loadDB() 回傳異常，db.warehouse 不是陣列');
+        }
+
+        let exactAsset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'airline' && a.targetAirline === name);
+
+        if (!exactAsset) {
+            let similarAsset = db.warehouse.find(a =>
+                a &&
+                typeof a === 'object' &&
+                a.type === 'airline' &&
+                typeof a.targetAirline === 'string' &&
+                (a.targetAirline.includes(name) || name.includes(a.targetAirline))
+            );
+
+            if (similarAsset && confirm(`系統偵測到相似的航空資產「${similarAsset.targetAirline}」，是否要進行歸戶合併？\n(若選取消，將建立獨立新帳戶)`)) {
+                exactAsset = similarAsset;
+            }
+        }
+
+        const timestamp = Date.now();
+
+        if(!exactAsset) {
+            exactAsset = {
+                type: 'airline',
+                targetAirline: name,
+                name: name,
+                current: 0,
+                unitPoints: 1,
+                unitMiles: 1,
+                bonusReq: 0,
+                bonusGive: 0,
+                schema_version: 2,
+                created_at: timestamp,
+                batches: []
+            };
+            db.warehouse.push(exactAsset);
+        }
+
+        if (!Array.isArray(exactAsset.batches)) {
+            exactAsset.batches = [];
+        }
+
+        const safeNameSnippet = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
+        const seq = exactAsset.batches.length;
+        const batchId = `txn_${timestamp}_${seq}_${safeNameSnippet}`;
+
+        exactAsset.batches.push({
+            batch_id: batchId,
+            direction: 'in',
+            amount: Math.abs(qty),
+            created_at: timestamp,
+            source_type: 'manual_input',
+            ref_id: null,
+            note: '手動存入航空哩程'
+        });
+
+        recomputeAssetCurrent(exactAsset);
+        saveDB(db);
+
+        clearInput('native-airline-name');
+        clearInput('native-current');
+        renderWarehouse();
+        showCustomAlert('✅ 航空哩程存入成功！');
+    } catch (err) {
+        alert('DEBUG ERROR: ' + (err && err.message ? err.message : err));
     }
-    if(!exactAsset) { exactAsset = { type: 'airline', targetAirline: name, name: name, current: 0, unitPoints: 1, unitMiles: 1, bonusReq:0, bonusGive:0 }; db.warehouse.push(exactAsset); }
-    exactAsset.current = (Number(exactAsset.current) || 0) + qty; saveDB(db);
-    clearInput('native-airline-name'); clearInput('native-current'); renderWarehouse(); showCustomAlert('✅ 航空哩程存入成功！');
 }
 
 function addRawAsset() {
