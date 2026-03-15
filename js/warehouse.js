@@ -2,6 +2,38 @@
    倉庫管理 2.0 (三位一體) & 兌換試算
    ========================================== */
 
+// ==========================================
+// Fallback：若 utils.js 尚未成功載入 recomputeAssetCurrent
+// 則在此提供後備版本，避免 addRawAsset 失效
+// ==========================================
+if (typeof recomputeAssetCurrent !== 'function') {
+    function recomputeAssetCurrent(asset) {
+        if (!asset || typeof asset !== 'object') return;
+
+        if (!Array.isArray(asset.batches)) {
+            asset.current = Number(asset.current) || 0;
+            return;
+        }
+
+        let total = 0;
+
+        asset.batches.forEach(batch => {
+            if (!batch || typeof batch !== 'object') return;
+
+            let amt = Number(batch.amount);
+            if (isNaN(amt)) amt = 0;
+
+            if (batch.direction === 'in') {
+                total += Math.abs(amt);
+            } else if (batch.direction === 'out') {
+                total -= Math.abs(amt);
+            }
+        });
+
+        asset.current = total;
+    }
+}
+
 function renderWarehouse() {
     const db = loadDB(); const con = document.getElementById('warehouse-list'); if(!con) return; con.innerHTML = '';
     const chkCon = document.getElementById('planner-asset-container'); if(chkCon) chkCon.innerHTML = '';
@@ -135,35 +167,12 @@ function addRawAsset() {
             note: '手動存入'
         });
 
-        if (typeof recomputeAssetCurrent !== 'function') {
-            return alert('DEBUG: recomputeAssetCurrent 未載入');
-        }
-
         recomputeAssetCurrent(asset);
-
-        if (typeof saveDB !== 'function') {
-            return alert('DEBUG: saveDB 未載入');
-        }
-
         saveDB(db);
-
-        if (typeof clearInput !== 'function') {
-            return alert('DEBUG: clearInput 未載入');
-        }
 
         clearInput('raw-point-name');
         clearInput('raw-point-current');
-
-        if (typeof renderWarehouse !== 'function') {
-            return alert('DEBUG: renderWarehouse 未載入');
-        }
-
         renderWarehouse();
-
-        if (typeof showCustomAlert !== 'function') {
-            return alert('DEBUG: showCustomAlert 未載入，但資料可能已存入');
-        }
-
         showCustomAlert('✅ 通用積分存入成功！');
     } catch (err) {
         alert('DEBUG ERROR: ' + (err && err.message ? err.message : err));
