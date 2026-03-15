@@ -161,7 +161,7 @@ function getTacticalCardAdvice(results, target, isRefund) {
         if (transferCard && transferCard.miles >= primary.miles * 0.97) {
             advisePool = '可轉點池';
             advisedCard = transferCard;
-            strategyReason = `目前沒有明確兌換目標，而這筆累積到【可轉點池】的效率與聯名卡相近，先保留後續轉向主流航司的彈性更有利。`;
+            strategyReason = `這筆刷匯豐拿到的回饋不輸聯名卡，先放在匯豐會比較靈活，之後想換哪家航空再決定就好。`;
         } else {
             if (cardPool === 'TRANSFER') {
                 advisePool = '可轉點池';
@@ -193,13 +193,15 @@ function renderTacticalAdvice(adviceObj) {
         return;
     }
 
+    let poolText = adviceObj.targetPool === '可轉點池' ? '建議先累積：匯豐點數' : `建議先補：【${escapeHTML(adviceObj.targetPool)}】`;
+
     let html = `
         <div class="card-box tdc-mb-3 p-3 shadow-sm" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac; border-radius: 16px;">
             <div class="tdc-flex tdc-align-center tdc-mb-2">
                 <svg class="lucide me-1 text-success"><use href="#icon-sparkle"/></svg>
                 <h6 class="fw-bold tdc-m-0 text-success">戰術主攻建議</h6>
             </div>
-            <div class="fw-bold text-dark" style="font-size: 1.05rem;">🎯 建議先補：【${escapeHTML(adviceObj.targetPool)}】</div>
+            <div class="fw-bold text-dark" style="font-size: 1.05rem;">🎯 ${poolText}</div>
             <div class="fw-bold text-dark mt-1" style="font-size: 0.95rem;">💳 主攻卡片：${escapeHTML(adviceObj.primaryCard)}</div>
             <div class="small text-secondary mt-2">💡 理由：${escapeHTML(adviceObj.strategyReason)}</div>
     `;
