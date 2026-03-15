@@ -188,23 +188,98 @@ function clearCurrentStats() {
 }
 
 function batchImport() {
-    if(!confirm('確定將明細全部存入倉庫？')) return;
-    const db = loadDB(); const monthKey = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-    const data = db.records[monthKey]; if(!data) return;
+    try {
+        if(!confirm('確定將明細全部存入倉庫？')) return;
 
-    const autoAssetsConfig = getAutoAssetsConfig();
+        const db = loadDB();
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        const data = db.records[monthKey];
+        if(!data) return;
 
-    for(let k in data) {
-        const r = data[k];
-        if(!r || typeof r !== 'object') continue;
-        const rule = autoAssetsConfig[r.id];
-        if(rule) {
-            let asset = db.warehouse.find(a => a && typeof a === 'object' && a.targetAirline === rule.target && a.type === rule.type);
-            if(!asset) { asset = { type: rule.type, targetAirline: rule.target, name: rule.target, current: 0, unitPoints:rule.unitPoints, unitMiles:rule.unitMiles, bonusReq:0, bonusGive:0 }; db.warehouse.push(asset); }
-            asset.current = (Number(asset.current) || 0) + r.miles;
+        const autoAssetsConfig = getAutoAssetsConfig();
+        const importTimestamp = Date.now();
+        let importedCount = 0;
+
+        for(let k in data) {
+            const r = data[k];
+            if(!r || typeof r !== 'object') continue;
+
+            const rule = autoAssetsConfig[r.id];
+            if(!rule) continue;
+
+            let asset = null;
+            const targetName = String(rule.target || '').trim();
+            const targetType = rule.type;
+
+            if (targetType === 'airline') {
+                asset = findAirlineAssetByAlias(db.warehouse, targetName);
+            } else {
+                asset = db.warehouse.find(a =>
+                    a &&
+                    typeof a === 'object' &&
+                    a.type === targetType &&
+                    a.targetAirline === targetName
+                );
+            }
+
+            if(!asset) {
+                const canonicalName = targetType === 'airline' ? canonicalizeAirlineName(targetName) : targetName;
+                asset = {
+                    type: targetType,
+                    targetAirline: canonicalName,
+                    name: canonicalName,
+                    current: 0,
+                    unitPoints: rule.unitPoints,
+                    unitMiles: rule.unitMiles,
+                    bonusReq: 0,
+                    bonusGive: 0,
+                    schema_version: 2,
+                    created_at: importTimestamp,
+                    batches: []
+                };
+                db.warehouse.push(asset);
+            }
+
+            if (!Array.isArray(asset.batches)) {
+                asset.batches = [];
+            }
+
+            const rawMiles = Number(r.miles) || 0;
+            if (rawMiles === 0) continue;
+
+            const safeNameSnippet = String(asset.name || asset.targetAirline || 'UNK')
+                .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '')
+                .substring(0, 3) || 'UNK';
+
+            const seq = asset.batches.length;
+            const batchId = `imp_${importTimestamp}_${seq}_${safeNameSnippet}`;
+            const direction = rawMiles > 0 ? 'in' : 'out';
+
+            asset.batches.push({
+                batch_id: batchId,
+                direction: direction,
+                amount: Math.abs(rawMiles),
+                created_at: r.createdAt || importTimestamp,
+                source_type: 'auto_import',
+                ref_id: k,
+                note: r.note || `批次入庫：${r.name || r.id || ''}`
+            });
+
+            recomputeAssetCurrent(asset);
+            importedCount++;
         }
+
+        db.records[monthKey] = {};
+        saveDB(db);
+        renderStatus();
+        renderList();
+        renderWarehouse();
+
+        showCustomAlert(`✅ 已全部入庫！\n共處理 ${importedCount} 筆批次明細`);
+    } catch (err) {
+        alert('DEBUG ERROR: ' + (err && err.message ? err.message : err));
     }
-    db.records[monthKey] = {}; saveDB(db); renderStatus(); renderList(); renderWarehouse(); showCustomAlert('✅ 已全部入庫！');
 }
 
 function confirmEditLimit() {
