@@ -77,57 +77,97 @@ function addNativeAsset() {
 }
 
 function addRawAsset() {
-    const name = document.getElementById('raw-point-name').value.trim();
-    const qty = parseInt(document.getElementById('raw-point-current').value);
+    try {
+        const nameEl = document.getElementById('raw-point-name');
+        const qtyEl = document.getElementById('raw-point-current');
 
-    if(!name || isNaN(qty) || qty <= 0) return showCustomAlert('請填寫完整資訊');
+        if (!nameEl || !qtyEl) {
+            return alert('DEBUG: 找不到 raw-point-name 或 raw-point-current 欄位');
+        }
 
-    const db = loadDB();
-    let asset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'raw' && a.name === name);
-    const timestamp = Date.now();
+        const name = nameEl.value.trim();
+        const qty = parseInt(qtyEl.value, 10);
 
-    if(!asset) {
-        asset = {
-            type: 'raw',
-            targetAirline: '無',
-            name: name,
-            current: 0,
-            unitPoints: 1,
-            unitMiles: 1,
-            bonusReq: 0,
-            bonusGive: 0,
-            schema_version: 2,
+        if (!name || isNaN(qty) || qty <= 0) {
+            return showCustomAlert('請填寫完整資訊');
+        }
+
+        const db = loadDB();
+        if (!db || !Array.isArray(db.warehouse)) {
+            return alert('DEBUG: loadDB() 回傳異常，db.warehouse 不是陣列');
+        }
+
+        let asset = db.warehouse.find(a => a && typeof a === 'object' && a.type === 'raw' && a.name === name);
+        const timestamp = Date.now();
+
+        if (!asset) {
+            asset = {
+                type: 'raw',
+                targetAirline: '無',
+                name: name,
+                current: 0,
+                unitPoints: 1,
+                unitMiles: 1,
+                bonusReq: 0,
+                bonusGive: 0,
+                schema_version: 2,
+                created_at: timestamp,
+                batches: []
+            };
+            db.warehouse.push(asset);
+        }
+
+        if (!Array.isArray(asset.batches)) {
+            asset.batches = [];
+        }
+
+        const safeNameSnippet = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
+        const seq = asset.batches.length;
+        const batchId = `txn_${timestamp}_${seq}_${safeNameSnippet}`;
+
+        asset.batches.push({
+            batch_id: batchId,
+            direction: 'in',
+            amount: Math.abs(qty),
             created_at: timestamp,
-            batches: []
-        };
-        db.warehouse.push(asset);
+            source_type: 'manual_input',
+            ref_id: null,
+            note: '手動存入'
+        });
+
+        if (typeof recomputeAssetCurrent !== 'function') {
+            return alert('DEBUG: recomputeAssetCurrent 未載入');
+        }
+
+        recomputeAssetCurrent(asset);
+
+        if (typeof saveDB !== 'function') {
+            return alert('DEBUG: saveDB 未載入');
+        }
+
+        saveDB(db);
+
+        if (typeof clearInput !== 'function') {
+            return alert('DEBUG: clearInput 未載入');
+        }
+
+        clearInput('raw-point-name');
+        clearInput('raw-point-current');
+
+        if (typeof renderWarehouse !== 'function') {
+            return alert('DEBUG: renderWarehouse 未載入');
+        }
+
+        renderWarehouse();
+
+        if (typeof showCustomAlert !== 'function') {
+            return alert('DEBUG: showCustomAlert 未載入，但資料可能已存入');
+        }
+
+        showCustomAlert('✅ 通用積分存入成功！');
+    } catch (err) {
+        alert('DEBUG ERROR: ' + (err && err.message ? err.message : err));
     }
-
-    if (!Array.isArray(asset.batches)) {
-        asset.batches = [];
-    }
-
-    const safeNameSnippet = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'UNK';
-    const seq = asset.batches.length;
-    const batchId = `txn_${timestamp}_${seq}_${safeNameSnippet}`;
-
-    asset.batches.push({
-        batch_id: batchId,
-        direction: 'in',
-        amount: Math.abs(qty),
-        created_at: timestamp,
-        source_type: 'manual_input',
-        ref_id: null,
-        note: '手動存入'
-    });
-
-    recomputeAssetCurrent(asset);
-    saveDB(db);
-
-    clearInput('raw-point-name');
-    clearInput('raw-point-current');
-    renderWarehouse();
-    showCustomAlert('✅ 通用積分存入成功！');
 }
 
 function addTransferAsset() {
