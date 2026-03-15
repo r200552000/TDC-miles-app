@@ -134,6 +134,7 @@ function getTacticalCardAdvice(results, target, isRefund) {
 
     let advisePool = cardPoolName;
     let strategyReason = '';
+    let advisedCard = primary;
 
     if (targetPool === 'CI' || targetPool === 'CX' || targetPool === 'BR') {
         if (cardPool === targetPool) {
@@ -155,20 +156,28 @@ function getTacticalCardAdvice(results, target, isRefund) {
             strategyReason = `在混合目標下，這筆大額消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
         }
     } else {
-        if (cardPool === 'TRANSFER') {
+        const transferCard = results.find(c => (c.id || '').toLowerCase().includes('hsbc_'));
+        
+        if (transferCard && transferCard.miles >= primary.miles * 0.97) {
             advisePool = '可轉點池';
-            strategyReason = `目前尚未決定單一目標，本筆先累積【可轉點池】最安全，避免太早將哩程綁死在單一航司。`;
+            advisedCard = transferCard;
+            strategyReason = `目前沒有明確兌換目標，而這筆累積到【可轉點池】的效率與聯名卡相近，先保留後續轉向主流航司的彈性更有利。`;
         } else {
-            advisePool = cardPoolName;
-            strategyReason = `這筆消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
+            if (cardPool === 'TRANSFER') {
+                advisePool = '可轉點池';
+                strategyReason = `目前尚未決定單一目標，本筆先累積【可轉點池】最安全，避免太早將哩程綁死在單一航司。`;
+            } else {
+                advisePool = cardPoolName;
+                strategyReason = `這筆消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
+            }
         }
     }
 
-    let warningMsg = primary.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null;
+    let warningMsg = advisedCard.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null;
     
     return {
         targetPool: advisePool,
-        primaryCard: primary.name,
+        primaryCard: advisedCard.name,
         strategyReason: strategyReason,
         warning: warningMsg
     };
