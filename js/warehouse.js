@@ -170,6 +170,28 @@ const AIRLINE_ALIAS_MAP = {
 };
 
 // ==========================================
+// transfer 來源池 canonical / alias map
+// 只用於 type === 'transfer'
+// ==========================================
+const TRANSFER_SOURCE_ALIAS_MAP = {
+    [normalizeStr('匯豐旅人')]: '匯豐 旅人積分',
+    [normalizeStr('匯豐 旅人')]: '匯豐 旅人積分',
+    [normalizeStr('匯豐旅人積分')]: '匯豐 旅人積分',
+    [normalizeStr('hsbc旅人')]: '匯豐 旅人積分',
+    [normalizeStr('hsbc 旅人')]: '匯豐 旅人積分',
+    [normalizeStr('hsbc旅人積分')]: '匯豐 旅人積分',
+    [normalizeStr('旅人積分')]: '匯豐 旅人積分',
+
+    [normalizeStr('匯豐live+')]: '匯豐Live+積分',
+    [normalizeStr('匯豐 live+')]: '匯豐Live+積分',
+    [normalizeStr('匯豐live+積分')]: '匯豐Live+積分',
+    [normalizeStr('hsbc live+')]: '匯豐Live+積分',
+    [normalizeStr('hsbc live+積分')]: '匯豐Live+積分',
+    [normalizeStr('live+')]: '匯豐Live+積分',
+    [normalizeStr('live+積分')]: '匯豐Live+積分'
+};
+
+// ==========================================
 // 航司名稱 canonical 化
 // 只給 airline 資產用
 // ==========================================
@@ -178,6 +200,17 @@ function canonicalizeAirlineName(name) {
     if (!raw) return '';
     const norm = normalizeStr(raw);
     return AIRLINE_ALIAS_MAP[norm] || raw;
+}
+
+// ==========================================
+// transfer 來源名稱 canonical 化
+// 只給 transfer 資產用
+// ==========================================
+function canonicalizeTransferSourceName(name) {
+    const raw = String(name || '').trim();
+    if (!raw) return '';
+    const norm = normalizeStr(raw);
+    return TRANSFER_SOURCE_ALIAS_MAP[norm] || raw;
 }
 
 // ==========================================
@@ -194,6 +227,23 @@ function findAirlineAssetByAlias(warehouse, inputName) {
         typeof a === 'object' &&
         a.type === 'airline' &&
         normalizeStr(canonicalizeAirlineName(a.targetAirline || a.name || '')) === canonicalNorm
+    ) || null;
+}
+
+// ==========================================
+// 只限 transfer 資產的匹配 helper
+// ==========================================
+function findTransferAssetByAlias(warehouse, inputName) {
+    if (!Array.isArray(warehouse)) return null;
+
+    const canonical = canonicalizeTransferSourceName(inputName);
+    const canonicalNorm = normalizeStr(canonical);
+
+    return warehouse.find(a =>
+        a &&
+        typeof a === 'object' &&
+        a.type === 'transfer' &&
+        normalizeStr(canonicalizeTransferSourceName(a.name || '')) === canonicalNorm
     ) || null;
 }
 
@@ -399,95 +449,150 @@ function addRawAsset() {
 }
 
 function addTransferAsset() {
-    const name = document.getElementById('trans-source-name').value.trim();
-    const rawQty = Number(document.getElementById('trans-current').value);
-    const tgt = document.getElementById('trans-target-airline').value.trim();
-    const uPts = parseFloat(document.getElementById('trans-unit-points').value);
-    const uMis = parseFloat(document.getElementById('trans-unit-miles').value);
+    try {
+        const sourceEl = document.getElementById('trans-source-name');
+        const qtyEl = document.getElementById('trans-current');
+        const targetEl = document.getElementById('trans-target-airline');
+        const unitPtsEl = document.getElementById('trans-unit-points');
+        const unitMilesEl = document.getElementById('trans-unit-miles');
+        const bonusReqEl = document.getElementById('trans-bonus-req');
+        const bonusGiveEl = document.getElementById('trans-bonus-give');
 
-    const rawBonusReq = document.getElementById('trans-bonus-req').value;
-    const rawBonusGive = document.getElementById('trans-bonus-give').value;
-    let bonusReq = parseFloat(rawBonusReq);
-    let bonusGive = parseFloat(rawBonusGive);
-
-    if(!name || !tgt || isNaN(uPts) || uPts <= 0 || isNaN(uMis) || uMis <= 0) {
-        return showCustomAlert('請填寫完整的轉出資訊，且兌換比例必須大於 0！');
-    }
-    if(!Number.isInteger(rawQty) || rawQty <= 0) {
-        return showCustomAlert('❌ 轉出數量必須為大於 0 的正整數！');
-    }
-
-    const hasBonusReq = rawBonusReq.trim() !== '';
-    const hasBonusGive = rawBonusGive.trim() !== '';
-    if(hasBonusReq || hasBonusGive) {
-        if(!hasBonusReq || !hasBonusGive || isNaN(bonusReq) || isNaN(bonusGive) || bonusReq <= 0 || bonusGive <= 0 || !Number.isInteger(bonusReq) || !Number.isInteger(bonusGive)) {
-            return showCustomAlert('❌ 額外轉換加碼設定錯誤！必須同時填寫「每滿」與「加贈」，且皆須為大於 0 的有效正整數。');
+        if (!sourceEl || !qtyEl || !targetEl || !unitPtsEl || !unitMilesEl || !bonusReqEl || !bonusGiveEl) {
+            return alert('DEBUG: 轉點欄位缺失');
         }
+
+        const rawSourceName = sourceEl.value.trim();
+        const rawQty = Number(qtyEl.value);
+        const rawTargetName = targetEl.value.trim();
+        const uPts = parseFloat(unitPtsEl.value);
+        const uMis = parseFloat(unitMilesEl.value);
+
+        const rawBonusReq = bonusReqEl.value;
+        const rawBonusGive = bonusGiveEl.value;
+        let bonusReq = parseFloat(rawBonusReq);
+        let bonusGive = parseFloat(rawBonusGive);
+
+        if(!rawSourceName || !rawTargetName || isNaN(uPts) || uPts <= 0 || isNaN(uMis) || uMis <= 0) {
+            return showCustomAlert('請填寫完整的轉出資訊，且兌換比例必須大於 0！');
+        }
+        if(!Number.isInteger(rawQty) || rawQty <= 0) {
+            return showCustomAlert('❌ 轉出數量必須為大於 0 的正整數！');
+        }
+
+        const hasBonusReq = rawBonusReq.trim() !== '';
+        const hasBonusGive = rawBonusGive.trim() !== '';
+        if(hasBonusReq || hasBonusGive) {
+            if(!hasBonusReq || !hasBonusGive || isNaN(bonusReq) || isNaN(bonusGive) || bonusReq <= 0 || bonusGive <= 0 || !Number.isInteger(bonusReq) || !Number.isInteger(bonusGive)) {
+                return showCustomAlert('❌ 額外轉換加碼設定錯誤！必須同時填寫「每滿」與「加贈」，且皆須為大於 0 的有效正整數。');
+            }
+        }
+
+        const qty = rawQty;
+        const db = loadDB();
+        if (!db || !Array.isArray(db.warehouse)) {
+            return alert('DEBUG: loadDB() 回傳異常，db.warehouse 不是陣列');
+        }
+
+        const finalSourceName = canonicalizeTransferSourceName(rawSourceName);
+        let sourceAsset = findTransferAssetByAlias(db.warehouse, finalSourceName);
+
+        if(!sourceAsset) {
+            sourceAsset = db.warehouse.find(a =>
+                a &&
+                typeof a === 'object' &&
+                a.type === 'raw' &&
+                normalizeStr(a.name) === normalizeStr(finalSourceName)
+            );
+        }
+
+        if(!sourceAsset) {
+            return showCustomAlert(`❌ 找不到名為「${rawSourceName}」的可扣除來源資產，請先確認倉庫內是否已有此項目。`);
+        }
+
+        if (!Array.isArray(sourceAsset.batches)) {
+            sourceAsset.batches = [];
+        }
+
+        const currentBalance = Number(sourceAsset.current) || 0;
+        if(currentBalance < qty) {
+            return showCustomAlert(`❌ 轉出失敗！「${sourceAsset.name || rawSourceName}」餘額不足 (目前餘額僅: ${currentBalance.toLocaleString()})`);
+        }
+
+        const baseMiles = Math.trunc(qty * (uMis / uPts));
+        const bonusMilesCalc = (hasBonusReq && hasBonusGive) ? Math.trunc(qty / bonusReq) * bonusGive : 0;
+        const totalAcquiredMiles = baseMiles + bonusMilesCalc;
+
+        if (totalAcquiredMiles <= 0) {
+            return showCustomAlert('❌ 依目前轉換比例，本次轉出實得哩程為 0，操作已自動取消。');
+        }
+
+        const finalTargetName = canonicalizeAirlineName(rawTargetName);
+        let targetAsset = findAirlineAssetByAlias(db.warehouse, finalTargetName);
+        const timestamp = Date.now();
+        const transferRefId = `transfer_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
+
+        if (!targetAsset) {
+            targetAsset = {
+                type: 'airline',
+                targetAirline: finalTargetName,
+                name: finalTargetName,
+                current: 0,
+                unitPoints: 1,
+                unitMiles: 1,
+                bonusReq: 0,
+                bonusGive: 0,
+                schema_version: 2,
+                created_at: timestamp,
+                batches: []
+            };
+            db.warehouse.push(targetAsset);
+        }
+
+        if (!Array.isArray(targetAsset.batches)) {
+            targetAsset.batches = [];
+        }
+
+        const sourceSnippet = String(sourceAsset.name || 'SRC').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'SRC';
+        const targetSnippet = String(targetAsset.name || 'TGT').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').substring(0, 3) || 'TGT';
+
+        sourceAsset.batches.push({
+            batch_id: `tout_${timestamp}_${sourceAsset.batches.length}_${sourceSnippet}`,
+            direction: 'out',
+            amount: Math.abs(qty),
+            created_at: timestamp,
+            source_type: 'transfer_out',
+            ref_id: transferRefId,
+            note: `轉出至 ${targetAsset.name || finalTargetName}`
+        });
+
+        targetAsset.batches.push({
+            batch_id: `tin_${timestamp}_${targetAsset.batches.length}_${targetSnippet}`,
+            direction: 'in',
+            amount: Math.abs(totalAcquiredMiles),
+            created_at: timestamp,
+            source_type: 'transfer_in',
+            ref_id: transferRefId,
+            note: `由 ${sourceAsset.name || finalSourceName} 轉入`
+        });
+
+        recomputeAssetCurrent(sourceAsset);
+        recomputeAssetCurrent(targetAsset);
+
+        saveDB(db);
+        clearInput('trans-source-name');
+        clearInput('trans-current');
+        clearInput('trans-target-airline');
+        clearInput('trans-unit-points');
+        clearInput('trans-unit-miles');
+        clearInput('trans-bonus-req');
+        clearInput('trans-bonus-give');
+
+        renderWarehouse();
+        showCustomAlert(`✅ 轉點成功！\n已從「${sourceAsset.name || rawSourceName}」扣除 ${qty.toLocaleString()} 點\n「${targetAsset.name || finalTargetName}」增加 ${totalAcquiredMiles.toLocaleString()} 哩`);
+    } catch (err) {
+        alert('DEBUG ERROR: ' + (err && err.message ? err.message : err));
     }
-
-    const qty = rawQty;
-    const db = loadDB();
-
-    const rawNormName = normalizeStr(name);
-    const SOURCE_ALIAS_MAP = {
-        [normalizeStr('匯豐旅人')]: '匯豐 旅人積分',
-        [normalizeStr('匯豐旅人積分')]: '匯豐 旅人積分',
-        [normalizeStr('匯豐Live+')]: '匯豐Live+積分',
-        [normalizeStr('匯豐Live+積分')]: '匯豐Live+積分'
-    };
-
-    let finalSourceName = SOURCE_ALIAS_MAP[rawNormName] || name;
-    let finalNormSourceName = normalizeStr(finalSourceName);
-
-    let sourceAsset = db.warehouse.find(a => a && typeof a === 'object' && (a.type === 'transfer' || a.type === 'raw') && a.name === finalSourceName);
-    if(!sourceAsset) {
-        sourceAsset = db.warehouse.find(a => a && typeof a === 'object' && (a.type === 'transfer' || a.type === 'raw') && normalizeStr(a.name) === finalNormSourceName);
-    }
-
-    if(!sourceAsset) {
-        return showCustomAlert(`❌ 找不到名為「${name}」的可扣除來源資產，請先確認倉庫內是否已有此項目。`);
-    }
-
-    let currentBalance = Number(sourceAsset.current) || 0;
-    if(currentBalance < qty) {
-        return showCustomAlert(`❌ 轉出失敗！「${sourceAsset.name || name}」餘額不足 (目前餘額僅: ${currentBalance.toLocaleString()})`);
-    }
-
-    let baseMiles = Math.trunc(qty * (uMis / uPts));
-    let bonusMilesCalc = (hasBonusReq && hasBonusGive) ? Math.trunc(qty / bonusReq) * bonusGive : 0;
-    let totalAcquiredMiles = baseMiles + bonusMilesCalc;
-
-    if (totalAcquiredMiles <= 0) {
-        return showCustomAlert('❌ 依目前轉換比例，本次轉出實得哩程為 0，操作已自動取消。');
-    }
-
-    sourceAsset.current = currentBalance - qty;
-
-    const finalTgtStr = canonicalizeAirlineName(tgt);
-
-    let targetAsset = findAirlineAssetByAlias(db.warehouse, finalTgtStr);
-
-    let finalTargetName = finalTgtStr;
-    if (!targetAsset) {
-        targetAsset = { type: 'airline', targetAirline: finalTargetName, name: finalTargetName, current: 0, unitPoints: 1, unitMiles: 1, bonusReq: 0, bonusGive: 0 };
-        db.warehouse.push(targetAsset);
-    } else {
-        finalTargetName = targetAsset.targetAirline || targetAsset.name || finalTgtStr;
-    }
-
-    targetAsset.current = (Number(targetAsset.current) || 0) + totalAcquiredMiles;
-
-    saveDB(db);
-    clearInput('trans-source-name');
-    clearInput('trans-current');
-    clearInput('trans-target-airline');
-    clearInput('trans-unit-points');
-    clearInput('trans-unit-miles');
-    clearInput('trans-bonus-req');
-    clearInput('trans-bonus-give');
-
-    renderWarehouse();
-    showCustomAlert(`✅ 轉點成功！\n已從「${sourceAsset.name || name}」扣除 ${qty.toLocaleString()} 點\n「${finalTargetName}」增加 ${totalAcquiredMiles.toLocaleString()} 哩`);
 }
 
 function delWarehouseAsset(idx) {
