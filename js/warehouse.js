@@ -74,32 +74,39 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('jal mileage bank')]: '日本航空',
     [normalizeStr('jl')]: '日本航空',
 
-    // 5. 亞航
+    // 5. 全日空 / ANA / ANA Mileage Club
+    [normalizeStr('全日空')]: '全日空',
+    [normalizeStr('全日空航空')]: '全日空',
+    [normalizeStr('ana')]: '全日空',
+    [normalizeStr('ana mileage club')]: '全日空',
+    [normalizeStr('nh')]: '全日空',
+
+    // 6. 亞航
     [normalizeStr('亞航')]: '亞航',
     [normalizeStr('airasia')]: '亞航',
     [normalizeStr('airasia rewards')]: '亞航',
 
-    // 6. 阿聯酋航空 / Skywards
+    // 7. 阿聯酋航空 / Skywards
     [normalizeStr('阿聯酋')]: '阿聯酋航空',
     [normalizeStr('阿聯酋航空')]: '阿聯酋航空',
     [normalizeStr('skywards')]: '阿聯酋航空',
     [normalizeStr('emirates')]: '阿聯酋航空',
     [normalizeStr('ek')]: '阿聯酋航空',
 
-    // 7. 加拿大航空 / Aeroplan
+    // 8. 加拿大航空 / Aeroplan
     [normalizeStr('加航')]: '加拿大航空',
     [normalizeStr('加拿大航空')]: '加拿大航空',
     [normalizeStr('aeroplan')]: '加拿大航空',
     [normalizeStr('air canada')]: '加拿大航空',
     [normalizeStr('ac')]: '加拿大航空',
 
-    // 8. 哥倫比亞航空 / LifeMiles
+    // 9. 哥倫比亞航空 / LifeMiles
     [normalizeStr('哥倫比亞航空')]: '哥倫比亞航空',
     [normalizeStr('lifemiles')]: '哥倫比亞航空',
     [normalizeStr('avianca')]: '哥倫比亞航空',
     [normalizeStr('av')]: '哥倫比亞航空',
 
-    // 9. 法航荷航 / Flying Blue
+    // 10. 法航荷航 / Flying Blue
     [normalizeStr('法航')]: '法航荷航藍天飛行',
     [normalizeStr('荷航')]: '法航荷航藍天飛行',
     [normalizeStr('法航與荷航')]: '法航荷航藍天飛行',
@@ -108,21 +115,21 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('air france')]: '法航荷航藍天飛行',
     [normalizeStr('klm')]: '法航荷航藍天飛行',
 
-    // 10. 海南航空 / 金鵬俱樂部
+    // 11. 海南航空 / 金鵬俱樂部
     [normalizeStr('海南航空')]: '海南航空',
     [normalizeStr('金鵬俱樂部')]: '海南航空',
     [normalizeStr('fortuna')]: '海南航空',
     [normalizeStr('hainan airlines')]: '海南航空',
     [normalizeStr('hu')]: '海南航空',
 
-    // 11. 澳洲航空 / Qantas
+    // 12. 澳洲航空 / Qantas
     [normalizeStr('澳航')]: '澳洲航空',
     [normalizeStr('澳洲航空')]: '澳洲航空',
     [normalizeStr('qantas')]: '澳洲航空',
     [normalizeStr('qantas frequent flyer')]: '澳洲航空',
     [normalizeStr('qf')]: '澳洲航空',
 
-    // 12. 卡達航空 / Privilege Club / Avios
+    // 13. 卡達航空 / Privilege Club / Avios
     [normalizeStr('卡達')]: '卡達航空',
     [normalizeStr('卡達航空')]: '卡達航空',
     [normalizeStr('貴賓俱樂部')]: '卡達航空',
@@ -130,7 +137,7 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('avios')]: '卡達航空',
     [normalizeStr('qr')]: '卡達航空',
 
-    // 13. 聯合航空 / MileagePlus
+    // 14. 聯合航空 / MileagePlus
     [normalizeStr('聯合航空')]: '聯合航空',
     [normalizeStr('前程萬里')]: '聯合航空',
     [normalizeStr('前程萬里飛行計劃')]: '聯合航空',
@@ -138,20 +145,20 @@ const AIRLINE_ALIAS_MAP = {
     [normalizeStr('united')]: '聯合航空',
     [normalizeStr('ua')]: '聯合航空',
 
-    // 14. 越南航空 / Lotusmiles
+    // 15. 越南航空 / Lotusmiles
     [normalizeStr('越南航空')]: '越南航空',
     [normalizeStr('微笑蓮花')]: '越南航空',
     [normalizeStr('lotusmiles')]: '越南航空',
     [normalizeStr('vn')]: '越南航空',
 
-    // 15. 土耳其航空 / Miles&Smiles
+    // 16. 土耳其航空 / Miles&Smiles
     [normalizeStr('土耳其航空')]: '土耳其航空',
     [normalizeStr('miles&smiles')]: '土耳其航空',
     [normalizeStr('miles and smiles')]: '土耳其航空',
     [normalizeStr('turkish airlines')]: '土耳其航空',
     [normalizeStr('tk')]: '土耳其航空',
 
-    // 16. 中華航空 / 華信航空 / 華夏哩程
+    // 17. 中華航空 / 華信航空 / 華夏哩程
     [normalizeStr('華航')]: '中華航空',
     [normalizeStr('中華航空')]: '中華航空',
     [normalizeStr('華信')]: '中華航空',
