@@ -68,52 +68,79 @@ function bindCampaignWarnings() {
 // ==========================================
 function calculate() {
     renderTacticalAdvice(null);
-    const db = loadDB();
-    const amt = parseFloat(document.getElementById('amount').value);
-    if (isNaN(amt) || amt === 0) return showCustomAlert('請輸入消費金額！');
 
-    const currType = document.getElementById('currency-type').value;
+    const db = loadDB();
+    const amountEl = document.getElementById('amount');
+    const amt = amountEl ? parseFloat(amountEl.value) : NaN;
+
+    if (isNaN(amt) || amt === 0) {
+        return showCustomAlert('請輸入消費金額！');
+    }
+
+    const currTypeEl = document.getElementById('currency-type');
+    const currType = currTypeEl ? currTypeEl.value : 'TWD';
+
     let twdBase = amt;
     let twdSpend = amt;
 
     const fxBoard = document.getElementById('fx-calc-board');
     if (currType === 'FOREIGN') {
-        const rawRate = parseFloat(document.getElementById('fx-rate-input').value);
+        const fxRateEl = document.getElementById('fx-rate-input');
+        const rawRate = fxRateEl ? parseFloat(fxRateEl.value) : NaN;
         if (!rawRate) return showCustomAlert('請輸入當下的牌告匯率！');
 
         twdBase = Math.round(amt * rawRate);
         twdSpend = Math.round(amt * rawRate * 1.015);
 
-        fxBoard.innerHTML = `
-            <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-1">
-                <span class="text-secondary small fw-bold">外幣本金折合 (回饋計算基準)</span>
-                <span class="text-dark fw-bold">NT$ ${twdBase.toLocaleString()}</span>
-            </div>
-            <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-1">
-                <span class="text-secondary small fw-bold">1.5% 結匯手續費</span>
-                <span class="text-danger fw-bold">+ NT$ ${Math.round(twdBase * 0.015).toLocaleString()}</span>
-            </div>
-            <hr class="my-2" style="border-color: #e879f9; opacity: 0.3;">
-            <div class="tdc-flex tdc-justify-between tdc-align-center">
-                <span class="text-primary-dark fw-bold">預估總扣款金額</span>
-                <span class="text-primary-dark fs-5 fw-bold font-hand">NT$ ${twdSpend.toLocaleString()}</span>
-            </div>
-        `;
-        fxBoard.style.display = 'block';
+        if (fxBoard) {
+            fxBoard.innerHTML = `
+                <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-1">
+                    <span class="text-secondary small fw-bold">外幣本金折合 (回饋計算基準)</span>
+                    <span class="text-dark fw-bold">NT$ ${twdBase.toLocaleString()}</span>
+                </div>
+                <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-1">
+                    <span class="text-secondary small fw-bold">1.5% 結匯手續費</span>
+                    <span class="text-danger fw-bold">+ NT$ ${Math.round(twdBase * 0.015).toLocaleString()}</span>
+                </div>
+                <hr class="my-2" style="border-color: #e879f9; opacity: 0.3;">
+                <div class="tdc-flex tdc-justify-between tdc-align-center">
+                    <span class="text-primary-dark fw-bold">預估總扣款金額</span>
+                    <span class="text-primary-dark fs-5 fw-bold font-hand">NT$ ${twdSpend.toLocaleString()}</span>
+                </div>
+            `;
+            fxBoard.style.display = 'block';
+        }
     } else {
-        fxBoard.style.display = 'none';
+        if (fxBoard) fxBoard.style.display = 'none';
     }
 
-    const kwKey = (document.getElementById('keyword-input').value || '').trim().toLowerCase();
-    const rawFxCode = document.getElementById('fx-currency-code') ? document.getElementById('fx-currency-code').value.trim() : '';
+    const keywordEl = document.getElementById('keyword-input');
+    const kwKey = ((keywordEl ? keywordEl.value : '') || '').trim().toLowerCase();
+
+    const fxCodeEl = document.getElementById('fx-currency-code');
+    const rawFxCode = fxCodeEl ? fxCodeEl.value.trim() : '';
     const currencyCode = detectCurrencyCode(rawFxCode) || rawFxCode.toUpperCase();
+
     const isForeign = (currType === 'FOREIGN');
-    const payMethod = document.getElementById('payment').value;
+
+    const paymentEl = document.getElementById('payment');
+    const payMethod = paymentEl ? paymentEl.value : 'physical';
 
     const kwConfig = getKeywordsConfig();
-    const isEUPhysical = isForeign && payMethod !== 'online' && ((currencyCode && ['EUR', 'GBP'].includes(currencyCode)) || kwConfig.eu_uk.some(w => kwKey.includes(w)));
+    const isEUPhysical =
+        isForeign &&
+        payMethod !== 'online' &&
+        (
+            (currencyCode && ['EUR', 'GBP'].includes(currencyCode)) ||
+            kwConfig.eu_uk.some(w => kwKey.includes(w))
+        );
 
-    const rawCat = document.getElementById('category').value;
+    const categoryEl = document.getElementById('category');
+    const rawCat = categoryEl ? categoryEl.value : 'general';
+
+    const birthdayModeEl = document.getElementById('birthdayMode');
+    const flyModeEl = document.getElementById('flyMode');
+
     const ctx = {
         db: db,
         curr: isForeign ? 'FOREIGN' : 'TWD',
@@ -122,8 +149,8 @@ function calculate() {
         group: mapCategoryGroup(rawCat),
         pay: payMethod,
         kwKey: kwKey,
-        isBirthday: document.getElementById('birthdayMode').checked,
-        isFlyMode: document.getElementById('flyMode').checked,
+        isBirthday: birthdayModeEl ? birthdayModeEl.checked : false,
+        isFlyMode: flyModeEl ? flyModeEl.checked : false,
         isForeign: isForeign,
         isEUR: isEUPhysical,
         twdBase: twdBase,
@@ -142,20 +169,20 @@ function calculate() {
     currentResults = [];
 
     (db.settings.enabledBuiltins || []).forEach(cardId => {
-        if (CARD_RULES[cardId]) {
-            const res = CARD_RULES[cardId].calc(ctx);
-            currentResults.push({
-                id: cardId,
-                name: CARD_RULES[cardId].name,
-                ...res,
-                twdSpend: twdSpend,
-                twdBase: twdBase
-            });
-        }
+        if (!CARD_RULES[cardId]) return;
+        const res = CARD_RULES[cardId].calc(ctx);
+        currentResults.push({
+            id: cardId,
+            name: CARD_RULES[cardId].name,
+            ...res,
+            twdSpend: twdSpend,
+            twdBase: twdBase
+        });
     });
 
     (db.customCards || []).forEach(c => {
         if (!c || typeof c !== 'object') return;
+
         let div = ctx.isForeign ? c.forRate : c.domRate;
 
         if (!div || isNaN(div) || div <= 0) {
@@ -178,13 +205,13 @@ function calculate() {
         let consumedQuota = ctx.twdBase;
 
         if (c.limitAmt && c.limitAmt > 0) {
-            let limitKey = getLimitKey(db, c.id, new Date());
-            let used = db.limits[limitKey]?.spend || 0;
-            let remaining = Math.max(0, c.limitAmt - used);
+            const limitKey = getLimitKey(db, c.id, new Date());
+            const used = db.limits[limitKey]?.spend || 0;
+            const remaining = Math.max(0, c.limitAmt - used);
 
             if (ctx.twdBase > remaining) {
                 isWarning = true;
-                let validSpend = remaining;
+                const validSpend = remaining;
                 miles = Math.trunc(validSpend / div);
                 note += `<span class="text-danger fw-bold d-block mt-1">⚠️ 額度已滿，超額部分無回饋</span>`;
                 consumedQuota = validSpend;
@@ -207,7 +234,8 @@ function calculate() {
 
     renderResults(currentResults);
 
-    const targetVal = document.getElementById('redemption-target').value;
+    const targetEl = document.getElementById('redemption-target');
+    const targetVal = targetEl ? targetEl.value : '';
     const isRefund = currentResults.length > 0 && currentResults[0].twdBase < 0;
     const advice = getTacticalCardAdvice(currentResults, targetVal, isRefund);
     renderTacticalAdvice(advice);
@@ -306,6 +334,7 @@ function renderResults(list) {
     if (!con) return;
 
     con.innerHTML = '';
+
     const resultArea = document.getElementById('result-area');
     if (resultArea) resultArea.style.display = 'block';
 
@@ -315,7 +344,7 @@ function renderResults(list) {
 
         let trueCostHtml = '';
         if (c.miles > 0) {
-            let trueCost = (c.twdSpend / c.miles).toFixed(2);
+            const trueCost = (c.twdSpend / c.miles).toFixed(2);
             trueCostHtml = `<span class="badge bg-light text-secondary border mt-1" style="font-size:0.7rem;">實質成本 $${trueCost}/哩</span>`;
         }
 
@@ -355,8 +384,8 @@ function renderResults(list) {
 }
 
 // ==========================================
-// 提供手動初始化用（避免某些載入順序問題）
+// 立即初始化活動提醒
 // ==========================================
-function initCalcWarnings() {
+document.addEventListener('DOMContentLoaded', function () {
     bindCampaignWarnings();
-}
+});
