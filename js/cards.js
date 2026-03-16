@@ -266,12 +266,18 @@ const CARD_RULES = {
 
             const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
             const isTruePhysical = !isOnline && (ctx.pay === 'physical' || ctx.pay === 'apple_pay');
+            const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
+            
             let isBonus = false, div = 18, noteBase = '';
 
             if (ctx.cat === 'flight_ci') {
                 div = 9;
                 isBonus = true;
                 noteBase = '華航官網 $9';
+            } else if (ctx.isForeign && isTravelOTA) {
+                div = 9;
+                isBonus = true;
+                noteBase = '🏨 國外訂房平台 $9';
             } else if (ctx.isForeign && isTruePhysical) {
                 if (ctx.isBirthday) {
                     div = 6;
