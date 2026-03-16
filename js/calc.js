@@ -272,18 +272,6 @@ function renderResults(list) {
         </div>`;
         con.appendChild(div);
     });
-
-    const linksContainer = document.getElementById('airline-links-container');
-    if (linksContainer) {
-        linksContainer.innerHTML = `
-            <a href="https://www.evaair.com/" target="_blank" class="btn-airline-link">長榮</a>
-            <a href="https://www.china-airlines.com/" target="_blank" class="btn-airline-link">華航</a>
-            <a href="https://www.cathaypacific.com/" target="_blank" class="btn-airline-link">國泰</a>
-            <a href="https://www.ana.co.jp/" target="_blank" class="btn-airline-link">ANA</a>
-            <a href="https://www.ana.co.jp/zh-tw/amc/reference/tux/staralliance/" target="_blank" class="btn-airline-link">ANA 換星盟</a>
-        `;
-        linksContainer.style.display = (list && list.length > 0) ? 'flex' : 'none';
-    }
 }
 
 function initToggleConfirms() {
@@ -346,3 +334,4 @@ function initToggleConfirms() {
 }
 
 document.addEventListener('DOMContentLoaded', initToggleConfirms);
+
