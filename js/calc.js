@@ -126,50 +126,61 @@ function getTacticalCardAdvice(results, target, isRefund) {
     else if (target === 'AM_BR') { targetPool = 'MIXED'; targetName = '混合目標'; }
     else { targetPool = 'NONE'; targetName = '無明確目標'; }
 
-    let cardPool = 'OTHER';
-    let cardPoolName = '其他體系';
-    if (primaryId.includes('taishin_cx')) { cardPool = 'CX'; cardPoolName = '國泰體系'; }
-    else if (primaryId.includes('ctbc_ci')) { cardPool = 'CI'; cardPoolName = '華航體系'; }
-    else if (primaryId.includes('hsbc_')) { cardPool = 'TRANSFER'; cardPoolName = '可轉點池'; }
-
-    let advisePool = cardPoolName;
-    let strategyReason = '';
     let advisedCard = primary;
+    let strategyReason = '';
+    let isMatched = false;
 
-    if (targetPool === 'CI' || targetPool === 'CX' || targetPool === 'BR') {
-        if (cardPool === targetPool) {
-            advisePool = cardPoolName;
-            strategyReason = `你目前的兌換目標為【${targetName}】，以此卡集中資源填補缺口，累積效率最高。`;
-        } else if (cardPool === 'TRANSFER') {
-            advisePool = '可轉點池';
-            strategyReason = `雖然你有明確目標，但本筆先累積【可轉點池】，能保留後續轉入【${targetName}】的最大彈性。`;
-        } else {
-            advisePool = cardPoolName;
-            strategyReason = `雖然你的目標偏向【${targetName}】，但本筆消費若不集中在【${cardPoolName}】會大幅折損回饋率，建議此筆獨立集中累積。`;
-        }
-    } else if (targetPool === 'MIXED') {
-        if (cardPool === 'TRANSFER') {
-            advisePool = '可轉點池';
-            strategyReason = `在雙目標混合下，本筆先累積【可轉點池】能保留最大的兌換與轉點彈性。`;
-        } else {
-            advisePool = cardPoolName;
-            strategyReason = `在混合目標下，這筆大額消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
-        }
-    } else {
+    // 第一層：官網 / 活動特例
+    if (primaryId.includes('taishin_cx') && primary.note.includes('越飛有哩')) {
+        strategyReason = '這筆符合越飛越有哩條件，直接用國泰聯名卡累積最有價值。';
+        isMatched = true;
+    } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(primaryId) && primary.note.includes('華航官網')) {
+        strategyReason = '這筆是華航官網購票，已命中指定通路加碼，直接刷這張最合理。';
+        isMatched = true;
+    } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(primaryId) && primary.note.includes('生日')) {
+        strategyReason = '這筆已命中生日加碼情境，直接用這張卡最合理。';
+        isMatched = true;
+    } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(primaryId) && primary.note.includes('訂房平台')) {
+        strategyReason = '這筆屬國外訂房平台加碼情境，直接刷這張卡比較有利。';
+        isMatched = true;
+    } else if (primaryId.includes('hsbc_live') && primary.note.includes('亞洲七國')) {
+        strategyReason = '這筆命中亞洲七國實體加碼，用 Live+ 賺取高回饋最划算。';
+        isMatched = true;
+    } else if (primaryId.includes('hsbc_live') && primary.note.includes('精選')) {
+        strategyReason = '這筆已命中匯豐 Live+ 的高回饋情境，直接用這張卡最合理。';
+        isMatched = true;
+    } else if (primaryId.includes('hsbc_inf') && primary.note.includes('海外消費')) {
+        strategyReason = '這筆屬海外消費情境，用匯豐旅人累積會比較直接。';
+        isMatched = true;
+    }
+
+    // 第二層：可轉點池彈性反超
+    if (!isMatched && (targetPool === 'NONE' || targetPool === 'MIXED')) {
         const transferCard = results.find(c => (c.id || '').toLowerCase().includes('hsbc_'));
-        
         if (transferCard && transferCard.miles >= primary.miles * 0.97) {
-            advisePool = '可轉點池';
             advisedCard = transferCard;
-            strategyReason = `這筆刷匯豐拿到的回饋不輸聯名卡，先放在匯豐會比較靈活，之後想換哪家航空再決定就好。`;
+            strategyReason = '這筆刷匯豐拿到的回饋不輸聯名卡，先放在匯豐會比較靈活，之後想換哪家航空再決定就好。';
+            isMatched = true;
+        }
+    }
+
+    // 決定最終建議的體系
+    let advisePool = '其他體系';
+    let advisedCardId = (advisedCard.id || '').toLowerCase();
+    if (advisedCardId.includes('taishin_cx')) advisePool = '國泰體系';
+    else if (advisedCardId.includes('ctbc_ci')) advisePool = '華航體系';
+    else if (advisedCardId.includes('hsbc_')) advisePool = '可轉點池';
+
+    // 第三層 & 第四層：目標體系對齊 & 一般池化集中
+    if (!isMatched) {
+        let cardPoolCode = 'OTHER';
+        if (advisePool === '國泰體系') cardPoolCode = 'CX';
+        else if (advisePool === '華航體系') cardPoolCode = 'CI';
+        
+        if (targetPool === cardPoolCode && (targetPool === 'CI' || targetPool === 'CX')) {
+            strategyReason = `你目前的目標是【${targetName}】，這筆剛好能集中火力填補缺口，累積效率最高。`;
         } else {
-            if (cardPool === 'TRANSFER') {
-                advisePool = '可轉點池';
-                strategyReason = `目前尚未決定單一目標，本筆先累積【可轉點池】最安全，避免太早將哩程綁死在單一航司。`;
-            } else {
-                advisePool = cardPoolName;
-                strategyReason = `這筆消費若分散會降低整體兌換效率，建議先集中火力補強【${cardPoolName}】，避免哩程零碎化。`;
-            }
+            strategyReason = `這筆若分散會降低整體兌換效率，建議先順應卡片優勢集中補強【${advisePool}】，避免哩程零碎化。`;
         }
     }
 
