@@ -110,87 +110,181 @@ function calculate() {
     renderTacticalAdvice(advice);
 }
 
+// ==========================================
+// 戰術主攻建議決策系統 (終極版)
+// ==========================================
+
+function getCardPoolInfo(cardId) {
+    const id = (cardId || '').toLowerCase();
+    if (id.includes('taishin_cx')) return { pool: 'CX', name: '國泰體系', type: 'DIRECT' };
+    if (id.includes('ctbc_ci')) return { pool: 'CI', name: '華航體系', type: 'DIRECT' };
+    if (id.includes('hsbc_inf')) return { pool: 'TRANSFER', name: '可轉點池', type: 'TRANSFER_FLEX' }; 
+    if (id.includes('hsbc_live')) return { pool: 'TRANSFER_OTHER', name: 'Live+點數', type: 'TRANSFER_OTHER' }; 
+    return { pool: 'OTHER', name: '其他體系', type: 'OTHER' };
+}
+
+function checkSpecialScenario(card) {
+    const id = (card.id || '').toLowerCase();
+    const note = card.note || '';
+    if (id.includes('taishin_cx') && note.includes('越飛有哩')) return '越飛越有哩特例';
+    if (['ctbc_ci_inf', 'ctbc_ci'].includes(id) && note.includes('華航官網')) return '華航官網特例';
+    if (['ctbc_ci_inf', 'ctbc_ci'].includes(id) && note.includes('生日')) return '生日倍數加碼';
+    if (['ctbc_ci_inf', 'ctbc_ci'].includes(id) && note.includes('訂房平台')) return '訂房平台特例';
+    if (id.includes('hsbc_live') && note.includes('亞洲七國')) return 'Live+亞洲七國';
+    if (id.includes('hsbc_live') && note.includes('精選')) return 'Live+精選通路';
+    return null;
+}
+
+function evaluatePoolStatus(targetCode) {
+    if (!targetCode || ['ALL', 'NONE', 'MIXED', 'AM_BR'].includes(targetCode)) return 'UNKNOWN';
+    try {
+        const db = typeof loadDB === 'function' ? loadDB() : null;
+        if (!db || !db.warehouse || !Array.isArray(db.warehouse)) return 'UNKNOWN';
+
+        let normalizedTarget = targetCode;
+        if (targetCode === 'AM' || targetCode === 'ASIAMILES') {
+            normalizedTarget = 'CX';
+        }
+
+        const exactMatches = {
+            'CI': ['CI'],
+            'CX': ['CX', 'AM'],
+            'BR': ['BR']
+        };
+
+        const includesMatches = {
+            'CI': ['CHINA AIRLINES', '華航', '中華航空'],
+            'CX': ['CATHAY PACIFIC', '國泰', '國泰航空', '亞萬', 'ASIA MILES'],
+            'BR': ['EVA AIR', '長榮', '長榮航空']
+        };
+
+        const targetAsset = db.warehouse.find(a => {
+            if (!a) return false;
+            const aName = (a.airline || a.name || '').toUpperCase().trim();
+            
+            const exactList = exactMatches[normalizedTarget] || [normalizedTarget];
+            const includesList = includesMatches[normalizedTarget] || [];
+
+            const matchExact = exactList.some(alias => aName === alias);
+            const matchIncludes = includesList.some(alias => aName.includes(alias));
+            
+            return matchExact || matchIncludes;
+        });
+
+        if (!targetAsset) return 'UNKNOWN';
+
+        const rawVal = targetAsset.amount ?? targetAsset.current ?? 0;
+        const currentMiles = parseInt(rawVal, 10) || 0;
+        
+        if (currentMiles < 25000) return 'WEAK';
+        return 'HEALTHY';
+
+    } catch (e) {
+        return 'UNKNOWN';
+    }
+}
+
 function getTacticalCardAdvice(results, target, isRefund) {
     if (!results || results.length === 0 || isRefund || results[0].miles <= 0) {
         return null;
     }
 
-    const primary = results[0];
-    let primaryId = (primary.id || '').toLowerCase();
+    const topCard = results[0];
+    const topMiles = topCard.miles;
 
-    let targetPool = '';
-    let targetName = '';
+    // 1. 目標解析
+    let targetPool = 'NONE';
+    let targetName = '無明確目標';
     if (target === 'CI') { targetPool = 'CI'; targetName = '華航體系'; }
     else if (target === 'CX' || target === 'AM' || target === 'ASIAMILES') { targetPool = 'CX'; targetName = '國泰體系'; }
     else if (target === 'BR' || target === 'EVA') { targetPool = 'BR'; targetName = '長榮體系'; }
-    else if (target === 'AM_BR') { targetPool = 'MIXED'; targetName = '混合目標'; }
-    else { targetPool = 'NONE'; targetName = '無明確目標'; }
+    else if (target === 'AM_BR') { targetPool = 'MIXED'; targetName = '雙目標(亞萬/長榮)'; }
 
-    let advisedCard = primary;
-    let strategyReason = '';
-    let isMatched = false;
+    // 2. 篩選候選清單 (容忍帶 3%)
+    const candidates = results.filter(c => c.miles >= topMiles * 0.97 && c.miles > 0);
+    const poolStatus = evaluatePoolStatus(targetPool);
 
-    // 第一層：官網 / 活動特例
-    if (primaryId.includes('taishin_cx') && primary.note.includes('越飛有哩')) {
-        strategyReason = '這筆符合越飛越有哩條件，直接用國泰聯名卡累積最有價值。';
-        isMatched = true;
-    } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(primaryId) && primary.note.includes('華航官網')) {
-        strategyReason = '這筆是華航官網購票，已命中指定通路加碼，直接刷這張最合理。';
-        isMatched = true;
-    } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(primaryId) && primary.note.includes('生日')) {
-        strategyReason = '這筆已命中生日加碼情境，直接用這張卡最合理。';
-        isMatched = true;
-    } else if (['ctbc_ci_inf', 'ctbc_ci'].includes(primaryId) && primary.note.includes('訂房平台')) {
-        strategyReason = '這筆屬國外訂房平台加碼情境，直接刷這張卡比較有利。';
-        isMatched = true;
-    } else if (primaryId.includes('hsbc_live') && primary.note.includes('亞洲七國')) {
-        strategyReason = '這筆命中亞洲七國實體加碼，用 Live+ 賺取高回饋最划算。';
-        isMatched = true;
-    } else if (primaryId.includes('hsbc_live') && primary.note.includes('精選')) {
-        strategyReason = '這筆已命中匯豐 Live+ 的高回饋情境，直接用這張卡最合理。';
-        isMatched = true;
-    } else if (primaryId.includes('hsbc_inf') && primary.note.includes('海外消費')) {
-        strategyReason = '這筆屬海外消費情境，用匯豐旅人累積會比較直接。';
-        isMatched = true;
+    // 3. 特例優先判定 (Fast Path)
+    const specialScenario = checkSpecialScenario(topCard);
+    if (specialScenario) {
+        const poolInfo = getCardPoolInfo(topCard.id);
+        return {
+            targetPool: poolInfo.type === 'TRANSFER_FLEX' ? '可轉點池' : poolInfo.name,
+            primaryCard: topCard.name,
+            strategyReason: `此筆命中「${specialScenario}」，具備絕對回饋優勢，建議直接以此卡集中火力。`,
+            warning: topCard.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null,
+            confidence: 'HIGH'
+        };
     }
 
-    // 第二層：可轉點池彈性反超
-    if (!isMatched && (targetPool === 'NONE' || targetPool === 'MIXED')) {
-        const transferCard = results.find(c => (c.id || '').toLowerCase().includes('hsbc_'));
-        if (transferCard && transferCard.miles >= primary.miles * 0.97) {
-            advisedCard = transferCard;
-            strategyReason = '這筆刷匯豐拿到的回饋不輸聯名卡，先放在匯豐會比較靈活，之後想換哪家航空再決定就好。';
-            isMatched = true;
-        }
-    }
-
-    // 決定最終建議的體系
-    let advisePool = '其他體系';
-    let advisedCardId = (advisedCard.id || '').toLowerCase();
-    if (advisedCardId.includes('taishin_cx')) advisePool = '國泰體系';
-    else if (advisedCardId.includes('ctbc_ci')) advisePool = '華航體系';
-    else if (advisedCardId.includes('hsbc_')) advisePool = '可轉點池';
-
-    // 第三層 & 第四層：目標體系對齊 & 一般池化集中
-    if (!isMatched) {
-        let cardPoolCode = 'OTHER';
-        if (advisePool === '國泰體系') cardPoolCode = 'CX';
-        else if (advisePool === '華航體系') cardPoolCode = 'CI';
+    // 4. 多維評分模型
+    const scoredCandidates = candidates.map(c => {
+        let score = (c.miles / topMiles) * 100; // 基礎客觀回饋分 (97~100)
+        const poolInfo = getCardPoolInfo(c.id);
         
-        if (targetPool === cardPoolCode && (targetPool === 'CI' || targetPool === 'CX')) {
-            strategyReason = `你目前的目標是【${targetName}】，這筆剛好能集中火力填補缺口，累積效率最高。`;
+        const isDirectMatch = (poolInfo.pool === targetPool && !['NONE', 'MIXED'].includes(targetPool));
+        const isFlexTransfer = (poolInfo.type === 'TRANSFER_FLEX');
+
+        const tags = { isDirectMatch, isFlexTransfer, weakBoost: false };
+
+        if (['NONE', 'MIXED'].includes(targetPool)) {
+            if (isFlexTransfer) score += 50; // 無目標時加權高彈性資產
         } else {
-            strategyReason = `這筆若分散會降低整體兌換效率，建議先順應卡片優勢集中補強【${advisePool}】，避免哩程零碎化。`;
+            if (isDirectMatch) {
+                score += 30; // 基礎目標一致性
+                if (poolStatus === 'WEAK') {
+                    score += 60; // 弱池直補加權 (可壓過彈性)
+                    tags.weakBoost = true;
+                }
+            } else if (isFlexTransfer) {
+                score += 40; // 彈性價值大於非弱池直補
+                if (poolStatus === 'UNKNOWN') score += 10; // 資訊不足時偏向保守彈性
+            }
+        }
+
+        return { card: c, score, poolInfo, tags };
+    });
+
+    // 排序取得戰術最佳解
+    scoredCandidates.sort((a, b) => b.score - a.score);
+    const winner = scoredCandidates[0];
+    const advisedCard = winner.card;
+    const finalPoolName = winner.poolInfo.type === 'TRANSFER_FLEX' ? '可轉點池' : winner.poolInfo.name;
+
+    // 5. 動態決策摘要產出
+    let strategyReason = '';
+    let confidence = 'MEDIUM';
+    const hasDirectRival = scoredCandidates.some(x => x.tags.isDirectMatch && x.card.id !== advisedCard.id);
+
+    if (['NONE', 'MIXED'].includes(targetPool)) {
+        if (winner.tags.isFlexTransfer) {
+            strategyReason = `在無單一明確目標下，此筆累積高彈性點數的回饋屬第一梯隊。優先保留 1:1 兌換靈活性，避免提早鎖死單一航司。`;
+        } else {
+            strategyReason = `目前無單一明確直補目標，且容忍帶內無高彈性卡片候選。建議依循最高客觀回饋率集中。`;
+            confidence = 'LOW';
+        }
+    } else {
+        if (winner.tags.isDirectMatch && winner.tags.weakBoost) {
+            strategyReason = `此筆回饋落在第一梯隊，且【${targetName}】庫存目前偏弱；直補聯名池能更快拉高可用基數，因此本次優先判定直補。`;
+            confidence = 'HIGH';
+        } else if (winner.tags.isFlexTransfer && hasDirectRival) {
+            strategyReason = `此筆與聯名卡回饋極近，且點數具 1:1 兌換彈性；目前【${targetName}】未見迫切直補需求，因此本次不先鎖定聯名池，保留後續轉向選擇權。`;
+        } else if (winner.tags.isDirectMatch) {
+            strategyReason = `此筆回饋具優勢且直擊兌換目標（${targetName}），在無其他高彈性替代方案下，集中累積效率最高。`;
+            confidence = 'HIGH';
+        } else if (winner.tags.isFlexTransfer) {
+            strategyReason = `候選名單中無直接對應目標的強勢聯名卡。建議優先累積高彈性池，保留後續 1:1 轉入${targetName}的空間。`;
+        } else {
+            strategyReason = `此筆在客觀回饋上具備明顯優勢，差距足以抵銷跨池彈性考量，建議暫時妥協順應卡片特性集中。`;
         }
     }
 
-    let warningMsg = advisedCard.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null;
-    
     return {
-        targetPool: advisePool,
+        targetPool: finalPoolName,
         primaryCard: advisedCard.name,
         strategyReason: strategyReason,
-        warning: warningMsg
+        warning: advisedCard.isWarning ? "注意：此筆消費將超出該卡回饋上限" : null,
+        confidence: confidence
     };
 }
 
@@ -206,11 +300,20 @@ function renderTacticalAdvice(adviceObj) {
 
     let poolText = adviceObj.targetPool === '可轉點池' ? '建議先累積：匯豐點數' : `建議先補：【${escapeHTML(adviceObj.targetPool)}】`;
 
+    let confidenceHtml = '';
+    if (adviceObj.confidence) {
+        let confMap = { 'HIGH': '高', 'MEDIUM': '中', 'LOW': '保守' };
+        let confColorMap = { 'HIGH': '#10b981', 'MEDIUM': '#6b7280', 'LOW': '#f59e0b' };
+        let confText = confMap[adviceObj.confidence] || '中';
+        let confColor = confColorMap[adviceObj.confidence] || '#6b7280';
+        confidenceHtml = `<span class="badge ms-2" style="background-color: ${confColor}15; color: ${confColor}; border: 1px solid ${confColor}40; font-size: 0.75rem; font-weight: normal; vertical-align: middle;">判斷信心：${confText}</span>`;
+    }
+
     let html = `
         <div class="card-box tdc-mb-3 p-3 shadow-sm" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac; border-radius: 16px;">
             <div class="tdc-flex tdc-align-center tdc-mb-2">
                 <svg class="lucide me-1 text-success"><use href="#icon-sparkle"/></svg>
-                <h6 class="fw-bold tdc-m-0 text-success">戰術主攻建議</h6>
+                <h6 class="fw-bold tdc-m-0 text-success tdc-flex tdc-align-center">戰術主攻建議${confidenceHtml}</h6>
             </div>
             <div class="fw-bold text-dark" style="font-size: 1.05rem;">🎯 ${poolText}</div>
             <div class="fw-bold text-dark mt-1" style="font-size: 0.95rem;">💳 主攻卡片：${escapeHTML(adviceObj.primaryCard)}</div>
@@ -334,4 +437,3 @@ function initToggleConfirms() {
 }
 
 document.addEventListener('DOMContentLoaded', initToggleConfirms);
-
