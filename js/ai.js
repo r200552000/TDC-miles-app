@@ -1,5 +1,5 @@
 /* ==========================================
-   AI 戰略引擎 - Gemini 診斷與報告生成
+   AI 戰略引擎 - Gemini 診斷與報告生成 (保守輸出終極版)
    ========================================== */
 
 // --- Gist 外掛 Fallback Stubs ---
@@ -72,6 +72,21 @@ function calculateBestTopup(candidates) {
     return { costChampion, speedChampion };
 }
 
+// --- AI 攔截防幻覺後處理 (二次過濾) ---
+function enforceConservativePhrasing(text) {
+    if (!text || typeof text !== 'string') return text;
+    let sanitized = text;
+    // 狀態斷言降級
+    sanitized = sanitized.replace(/目前可飛|現在還有|有飛|目前有開|目前仍有營運|現在仍有營運/g, '理論上可對應(需確認當季班表)');
+    // 產品斷言降級
+    sanitized = sanitized.replace(/有頭等艙|配置頭等艙|目前仍提供頭等艙/g, '歷史/理論上具備頭等艙(需確認實際機型)');
+    sanitized = sanitized.replace(/有商務艙|配置商務艙|目前仍提供商務艙/g, '歷史/理論上具備商務艙(需確認實際機型)');
+    sanitized = sanitized.replace(/可以換|直接換這條|現在可換/g, '規則上可兌換(需確認放票狀態)');
+    // 排名與強推薦斷言降級
+    sanitized = sanitized.replace(/推薦這條線|這條線適合換|最推薦|首選路線|首選方案|第一名路線|最值得換/g, '理論高價值選項');
+    return sanitized;
+}
+
 // --- AI 回傳清洗與白名單過濾 (防白屏 & 防幽靈卡) ---
 function sanitizeAIResponse(res, topupWhitelist) {
     const cleaned = {};
@@ -97,6 +112,7 @@ function sanitizeAIResponse(res, topupWhitelist) {
         return Boolean(val);
     };
     const localNormalizeStr = (str) => (typeof str === 'string' ? str.trim().replace(/\s+/g, ' ') : '');
+    const safeConservativeStr = (val) => enforceConservativePhrasing(String(val || ''));
 
     const normalizedWhitelist = safeArray(topupWhitelist).map(localNormalizeStr).filter(Boolean);
 
@@ -105,11 +121,11 @@ function sanitizeAIResponse(res, topupWhitelist) {
         const asr = safeObject(res.asset_strategy_review);
         let pUse = safeArray(asr.priority_use).map(i => {
             const si = safeObject(i);
-            return { asset_name: String(si.asset_name || ''), reason: String(si.reason || '') };
+            return { asset_name: String(si.asset_name || ''), reason: safeConservativeStr(si.reason) };
         });
         let kReserve = safeArray(asr.keep_in_reserve).map(i => {
             const si = safeObject(i);
-            return { asset_name: String(si.asset_name || ''), reason: String(si.reason || '') };
+            return { asset_name: String(si.asset_name || ''), reason: safeConservativeStr(si.reason) };
         });
 
         if (pUse.length > 1) {
@@ -119,37 +135,37 @@ function sanitizeAIResponse(res, topupWhitelist) {
         }
 
         cleaned.asset_strategy_review = {
-            overall_status: String(asr.overall_status || ''),
+            overall_status: safeConservativeStr(asr.overall_status),
             priority_use: pUse,
             keep_in_reserve: kReserve,
             do_not_use_yet: safeArray(asr.do_not_use_yet).map(i => {
                 const si = safeObject(i);
-                return { asset_name: String(si.asset_name || ''), reason: String(si.reason || '') };
+                return { asset_name: String(si.asset_name || ''), reason: safeConservativeStr(si.reason) };
             })
         };
     }
-    if (res.top_ranked_destinations) {
-        cleaned.top_ranked_destinations = safeArray(res.top_ranked_destinations).map(d => {
+    
+    if (res.candidate_routes) {
+        cleaned.candidate_routes = safeArray(res.candidate_routes).map(d => {
             const sd = safeObject(d);
             return {
-                rank: safeNum(sd.rank),
                 route_name: String(sd.route_name || sd.destination || ''),
                 is_positioning_required: safeBool(sd.is_positioning_required),
-                positioning_strategy: String(sd.positioning_strategy || ''),
-                feasibility_status: String(sd.feasibility_status || ''),
-                value_potential: String(sd.value_potential || ''),
+                positioning_strategy: safeConservativeStr(sd.positioning_strategy),
+                theoretical_value: safeConservativeStr(sd.theoretical_value),
                 est_tax_burden: String(sd.est_tax_burden || ''),
-                topup_difficulty: String(sd.topup_difficulty || ''),
-                final_verdict: String(sd.final_verdict || ''),
-                sort_reason: String(sd.sort_reason || '')
+                current_verification_status: safeConservativeStr(sd.current_verification_status),
+                risk_note: safeConservativeStr(sd.risk_note),
+                recommendation_level: safeConservativeStr(sd.recommendation_level)
             };
         });
     }
+    
     cleaned.not_recommended_routes = safeArray(res.not_recommended_routes).map(r => {
         const sr = safeObject(r);
-        return { destination: String(sr.destination || ''), reason: String(sr.reason || '') };
+        return { destination: String(sr.destination || ''), reason: safeConservativeStr(sr.reason) };
     });
-    cleaned.contextual_note = String(res.contextual_note || '');
+    cleaned.contextual_note = safeConservativeStr(res.contextual_note);
 
     // --- Specific Mode 洗滌 ---
     if (res.feasibility) {
@@ -162,14 +178,16 @@ function sanitizeAIResponse(res, topupWhitelist) {
         };
     }
 
-    if (res.four_core_strategies) {
-        const fcs = safeObject(res.four_core_strategies);
-        cleaned.four_core_strategies = {};
+    if (res.theoretical_paths) {
+        const tp = safeObject(res.theoretical_paths);
+        cleaned.theoretical_paths = {};
         ['direct_flight', 'low_tax', 'alliance_sweetspot', 'open_jaw_backup'].forEach(key => {
-            const item = safeObject(fcs[key]);
-            cleaned.four_core_strategies[key] = {
-                route_details: String(item.route_details || ''),
-                pros_cons: String(item.pros_cons || '')
+            const item = safeObject(tp[key]);
+            cleaned.theoretical_paths[key] = {
+                route_details: safeConservativeStr(item.route_details),
+                current_verification_status: safeConservativeStr(item.current_verification_status),
+                risk_note: safeConservativeStr(item.risk_note),
+                tax_note: safeConservativeStr(item.tax_note)
             };
         });
     }
@@ -196,6 +214,123 @@ function sanitizeAIResponse(res, topupWhitelist) {
     return cleaned;
 }
 
+// --- AI 保守輸出模式 (現況閘門) ---
+function buildConservativeSystemPrompt() {
+    return `
+你是「TDC環哩匯」的資深哩程策略顧問。你非常嚴謹、專業，且絕對不會在缺乏現況證據時給予盲目推測或肯定式推薦。
+
+【重要前提：資料可信度降級】
+你目前接收到的所有航線、距離帶 (Distance Zone)、兌換表格 (Award Chart) 與歷史艙等資訊，一律被視為「B級 (理論規則)」或「C級 (歷史推測)」資料。
+你**完全沒有**「A級現況驗證資料」(如當前即時航班表、官方當下可售機位、近期開票實績)。
+若資料未提供現役航班、現役艙等或現行可售性，你不得自行推定其存在，也不得補完成現況事實。
+
+【強制輸出規範：保守模式】
+基於缺乏 A 級資料，你進行任何兌換評估時，必須強制進入「保守輸出模式」，嚴格遵守以下規則：
+
+1. 允許理論推演，但絕對禁止偽裝成現況斷言
+你可以依據 B 級資料進行理論推演，例如：「若該航線目前仍有營運，依距離表理論上會落在某區間」、「若仍可依此規則兌換，理論所需哩程約為 X」。
+但你【絕對禁止】將理論推演寫成現況斷言。嚴禁使用以下詞彙或其同義表達：
+⛔ 「目前可飛」、「現在還有」、「有飛」、「目前有開」、「目前仍有營運」、「現在仍有營運」
+⛔ 「有頭等艙」、「有商務艙」、「配置頭等艙」、「目前仍提供頭等艙」、「目前仍提供商務艙」
+⛔ 「可以換」、「直接換這條」、「現在可換」
+
+2. 禁止排序式強推薦
+你不得給出具體排名的推薦清單，例如：
+⛔ 「推薦這條線」、「這條線適合換」、「最推薦」、「首選路線」、「首選方案」、「第一名路線」、「最值得換」
+你只能做規則說明、風險提醒與理論上的條件式推演。
+
+3. 強制使用的保守替代句型
+當必須評估具體路線或艙等時，請強制使用以下句型：
+✅ 「距離表雖有列入，但仍需確認目前是否仍有航班/營運。」
+✅ 「規則上可對應，但目前是否仍有營運需再確認。」
+✅ 「歷史上曾出現過，不代表目前仍提供此艙等。」
+✅ 「是否仍可飛/可換，需以官方現行航網與實際庫存為準。」
+✅ 「因缺乏現況驗證，暫不建議直接列為推薦選項。」
+✅ 「目前資料不足以確認是否仍提供。」
+
+4. 負面與正面示範 (Few-Shot Examples)
+❌ 錯誤：「國泰現在有飛馬爾地夫，可以直接換。」
+⭕ 正確：「國泰的距離表上雖有馬爾地夫的對應標準，但是否仍有現行航班與可換艙等，需以當季航網與實際放票為準。」
+❌ 錯誤：「台灣飛香港有頭等艙，可以優先考慮。」
+⭕ 正確：「台灣飛香港歷史上曾出現過頭等艙，但不代表目前仍提供，暫不建議直接納入推薦考量。」
+
+5. 條件式保底結尾
+【注意】若你的回覆內容涉及「具體航線評估」、「具體艙等討論」或「兌換策略建議」時，請務必在該段落或文末補上這句提醒：
+「最終仍需以航空公司現行航網、實際放票與當日可售艙等為準。」
+(若僅為一般哩程制度說明或抽象規則整理，則不強制附加此句。)
+`;
+}
+
+function buildCompactAIDiagnosisContext(aiPayload, mode) {
+    const { assetSummary, normalizedAssets, blockedRawAssets, recommendedTopupByCost, recommendedTopupBySpeed, userTarget, topup_strict_rule } = aiPayload;
+
+    let contextStr = `【診斷模式】: ${mode === 'global' ? '全局資產價值探索 (保守模式)' : '指定航線策略推演 (保守模式)'}\n`;
+    contextStr += `【出發基地】: ${userTarget?.base_location || '未知'}\n`;
+    if (mode === 'specific') {
+        contextStr += `【目標航線】: ${userTarget.from} 飛往 ${userTarget.to} (${userTarget.tripType} / ${userTarget.cabinClass})\n`;
+    }
+
+    contextStr += `\n【資產總體摘要】:\n`;
+    contextStr += `- 總未轉換點數 (Raw Points): ${assetSummary?.totalRawPoints || 0}\n`;
+    contextStr += `- 是否為哩程新手 (<10k): ${assetSummary?.isNewbie || false}\n`;
+    contextStr += `- 是否負債: ${assetSummary?.hasDebt || false}\n`;
+
+    contextStr += `\n【可用資產清單 (有效哩程)】:\n`;
+    if (normalizedAssets && normalizedAssets.length > 0) {
+        normalizedAssets.forEach(a => {
+            contextStr += `- ${a.source_program}: 折算有效哩程 ${a.effective_miles} 哩 (原始數量: ${a.original_points})\n`;
+        });
+    } else {
+        contextStr += `- 無有效資產\n`;
+    }
+
+    contextStr += `\n【不可用資產 (絕對禁止計入)】:\n`;
+    if (blockedRawAssets && blockedRawAssets.length > 0) {
+        blockedRawAssets.forEach(a => {
+            contextStr += `- ${a.name}: ${a.raw_points} 點\n`;
+        });
+    } else {
+        contextStr += `- 無\n`;
+    }
+
+    contextStr += `\n【指定補血卡片】:\n`;
+    contextStr += `- 成本最優卡: ${recommendedTopupByCost ? `${recommendedTopupByCost.cardName} (比例 ${recommendedTopupByCost.bestRate})` : '無'}\n`;
+    contextStr += `- 速度最快卡: ${recommendedTopupBySpeed ? `${recommendedTopupBySpeed.cardName} (比例 ${recommendedTopupBySpeed.bestRate})` : '無'}\n`;
+
+    contextStr += `\n【系統強制限制】:\n${topup_strict_rule}\n`;
+
+    return contextStr;
+}
+
+function assembleAIPayload(engineLogic, compactContext, globalSchema, specificSchema, mode) {
+    const systemPrompt = buildConservativeSystemPrompt();
+    const currentYear = new Date().getFullYear();
+    const baseSystemInstructions = `[角色任務]: 你是一名深耕 ${currentYear} 年航空哩程領域的頂尖戰略顧問，負責分析使用者的真實資產並給出具備數學依據的保守決策報告。
+[鐵律]:
+1. 航空哩程【絕對不可跨航司相加】！禁止加總不同航空的哩程來告訴使用者「總共有多少哩」。評估兌換時，只能基於「單一目標航司哩程」+「可轉入該航司的通用積分」來獨立計算。
+2. blockedRawAssets 是無法轉換的點數，絕對不可計入計算。
+3. 絕對嚴格返回純 JSON 格式，禁止任何 Markdown 標記 (\`\`\`json 等)。
+
+[決策要求]: ${engineLogic}
+${typeof AI_PROMPT_PREFERENCES !== 'undefined' && AI_PROMPT_PREFERENCES ? '\n[戰略偏好與限制]:\n' + AI_PROMPT_PREFERENCES : ''}
+
+[強制輸出 JSON Schema]:
+${mode === 'global' ? globalSchema : specificSchema}`;
+
+    return {
+        system_instruction: {
+            parts: [{ text: baseSystemInstructions + "\n\n" + systemPrompt }]
+        },
+        contents: [
+            { role: "user", parts: [{ text: `[輸入資料 Context]:\n${compactContext}` }] }
+        ],
+        generationConfig: {
+            temperature: 0.2
+        }
+    };
+}
+
+
 async function startAIDiagnosis(mode) {
     const key = safeGetItem('GEMINI_API_KEY');
     if (!key) { showModal('aiIntroModal'); return; }
@@ -203,8 +338,8 @@ async function startAIDiagnosis(mode) {
     const contentBox = document.getElementById('ai-report-content');
     const modalTitle = document.getElementById('ai-modal-title');
 
-    modalTitle.innerHTML = mode === 'global' ? '<svg class="me-2" style="width:20px;height:20px; color:#6d28d9;"><use href="#icon-sparkle"/></svg>全局資產價值指標 (戰略紫)' : '<svg class="me-2" style="width:20px;height:20px; color:#2563eb;"><use href="#icon-target"/></svg>指定航線達成方案 (精準藍)';
-    contentBox.innerHTML = '<div class="tdc-text-center py-5 text-muted"><div class="spinner-border text-primary tdc-mb-3"></div><br>正在連接 Gemini 大腦，執行轉點估值與極限航線兵推...</div>';
+    modalTitle.innerHTML = mode === 'global' ? '<svg class="me-2" style="width:20px;height:20px; color:#6d28d9;"><use href="#icon-sparkle"/></svg>全局資產價值指標 (保守評估)' : '<svg class="me-2" style="width:20px;height:20px; color:#2563eb;"><use href="#icon-target"/></svg>指定航線達成方案 (保守推演)';
+    contentBox.innerHTML = '<div class="tdc-text-center py-5 text-muted"><div class="spinner-border text-primary tdc-mb-3"></div><br>正在連接 Gemini 大腦，執行轉點估值與理論航線兵推...</div>';
     showModal('aiReportModal');
 
     try {
@@ -314,6 +449,14 @@ async function startAIDiagnosis(mode) {
 
         const { costChampion, speedChampion } = calculateBestTopup(topupCandidates);
 
+        let topupRule = "";
+        if (!costChampion && !speedChampion) {
+            topupRule = "您目前沒有符合該目標航司資格的補血卡片，絕對不可自行發明補血卡片，必須回覆：目前沒有可補血卡片。";
+        } else {
+            topupRule = `計算補血金額時【必須且只能】依據我提供的 recommendedTopupByCost (${costChampion?.cardName||'無'}) 或 recommendedTopupBySpeed (${speedChampion?.cardName||'無'}) 內的 bestRate。推薦的 recommended_card 欄位名稱【必須完全等於】上述兩張卡的 cardName，禁止發明其他卡片。`;
+        }
+        
+        // 將 topupRule 塞回 aiPayload，讓它跟著資料走
         const aiPayload = {
             assetSummary,
             normalizedAssets,
@@ -321,9 +464,9 @@ async function startAIDiagnosis(mode) {
             topupCandidates,
             recommendedTopupByCost: costChampion,
             recommendedTopupBySpeed: speedChampion,
-            userTarget
+            userTarget,
+            topup_strict_rule: topupRule 
         };
-        const currentYear = new Date().getFullYear();
 
         // 4. 構建 System Prompt 與 JSON Schema
         const globalSchema = `{
@@ -333,8 +476,8 @@ async function startAIDiagnosis(mode) {
     "keep_in_reserve": [{"asset_name": "String", "reason": "String"}],
     "do_not_use_yet": [{"asset_name": "String", "reason": "String"}]
   },
-  "top_ranked_destinations": [
-    {"rank": 1, "route_name": "String (起迄/艙等/單來回)", "is_positioning_required": false, "positioning_strategy": "String", "feasibility_status": "String (極短！15字以內！如：已達成 / 尚缺5000哩)", "value_potential": "String", "est_tax_burden": "String", "topup_difficulty": "String", "final_verdict": "String", "sort_reason": "String"}
+  "candidate_routes": [
+    {"route_name": "String (起迄/艙等/單來回)", "is_positioning_required": false, "positioning_strategy": "String", "theoretical_value": "String", "est_tax_burden": "String", "current_verification_status": "String (極短！如：需查證當季班表)", "risk_note": "String", "recommendation_level": "String (如：理論探討/保守觀望)"}
   ],
   "not_recommended_routes": [{"destination": "String", "reason": "String"}],
   "contextual_note": "String"
@@ -344,11 +487,11 @@ async function startAIDiagnosis(mode) {
   "feasibility": {
     "is_achievable": true, "target_est_miles": 0, "current_effective_miles": 0, "shortfall": 0
   },
-  "four_core_strategies": {
-    "direct_flight": {"route_details": "String", "pros_cons": "String"},
-    "low_tax": {"route_details": "String", "pros_cons": "String"},
-    "alliance_sweetspot": {"route_details": "String", "pros_cons": "String"},
-    "open_jaw_backup": {"route_details": "String", "pros_cons": "String"}
+  "theoretical_paths": {
+    "direct_flight": {"route_details": "String", "current_verification_status": "String", "risk_note": "String", "tax_note": "String"},
+    "low_tax": {"route_details": "String", "current_verification_status": "String", "risk_note": "String", "tax_note": "String"},
+    "alliance_sweetspot": {"route_details": "String", "current_verification_status": "String", "risk_note": "String", "tax_note": "String"},
+    "open_jaw_backup": {"route_details": "String", "current_verification_status": "String", "risk_note": "String", "tax_note": "String"}
   },
   "topup_recommendations": [
     {"topup_type": "最省成本方案 | 最快達成方案", "recommended_card": "String (嚴格對應 JS 算好的冠軍卡)", "trigger_scenario": "String", "math_formula": "String (缺口X哩 * Y元/哩 = Z元)", "required_spend_twd": 0}
@@ -356,39 +499,17 @@ async function startAIDiagnosis(mode) {
   "contextual_note": "String"
 }`;
 
-        let topupRule = "";
-        if (!costChampion && !speedChampion) {
-            topupRule = "您目前沒有符合該目標航司資格的補血卡片，絕對不可自行發明補血卡片，必須回覆：目前沒有可補血卡片。";
-        } else {
-            topupRule = `計算補血金額時【必須且只能】依據我提供的 recommendedTopupByCost (${costChampion?.cardName||'無'}) 或 recommendedTopupBySpeed (${speedChampion?.cardName||'無'}) 內的 bestRate。
-推薦的 recommended_card 欄位名稱【必須完全等於】上述兩張卡的 cardName，禁止發明其他卡片。`;
-        }
-
         const engineLogic = mode === 'global'
-            ? `作為資深哩程玩家，評估資產組合並推薦 3 個最高 CPP 甜蜜點目的地。推薦的航線必須以 base_location（${baseLocation}）為出發點。若是利用外站（如香港/新加坡出發）的亮點，必須在 is_positioning_required 標示 true，並於 positioning_strategy 明確評估從 ${baseLocation} 過去的銜接難度與成本。`
-            : `針對目標航線，提供 4 套具備實質差異的策略 (直飛/低稅金/聯盟套利/外站)。精算差額，並嚴格使用 JS 算好的冠軍卡推算補血算式。`;
+            ? `評估資產組合並列出 3 個理論上具高 CPP 價值的候選目的地。禁止使用絕對排名，必須加上現況驗證提示。若是利用外站的亮點，必須在 is_positioning_required 標示 true，並於 positioning_strategy 明確評估銜接難度與風險。`
+            : `針對目標航線，提供 4 套具備實質差異的理論策略路徑 (直飛/低稅金/聯盟套利/外站)。精算理論差額，並嚴格使用 JS 算好的冠軍卡推算補血算式。所有路徑必須加上保守的現況風險提示。`;
 
-        const systemPrompt = `[角色任務]: 你是一名深耕 ${currentYear} 年航空哩程領域的頂尖戰略顧問，負責分析使用者的真實資產並給出具備數學依據的決策報告。
-[鐵律]:
-1. ${topupRule}
-2. 補血算式必須包含：(目標 - 現有 = 缺口) -> 缺口 * 卡片bestRate = 應刷金額。
-3. 航空哩程【絕對不可跨航司相加】！禁止加總不同航空的哩程來告訴使用者「總共有多少哩」。評估兌換時，只能基於「單一目標航司哩程」+「可轉入該航司的通用積分」來獨立計算。
-4. blockedRawAssets 是無法轉換的點數，絕對不可計入計算。
-5. 絕對嚴格返回純 JSON 格式，禁止任何 Markdown 標記 (\`\`\`json 等)。
-
-[輸入資料 Payload]:
-${JSON.stringify(aiPayload)}
-
-[決策要求]: ${engineLogic}
-${typeof AI_PROMPT_PREFERENCES !== 'undefined' && AI_PROMPT_PREFERENCES ? '\n[戰略偏好與限制]:\n' + AI_PROMPT_PREFERENCES : ''}
-
-[強制輸出 JSON Schema]:
-${mode === 'global' ? globalSchema : specificSchema}`;
+        const compactContext = buildCompactAIDiagnosisContext(aiPayload, mode);
+        const requestPayload = assembleAIPayload(engineLogic, compactContext, globalSchema, specificSchema, mode);
 
         // 5. 呼叫 API 與錯誤分級處理
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: systemPrompt }] }], generationConfig: { temperature: 0.2 } })
+            body: JSON.stringify(requestPayload)
         });
 
         if (!response.ok) {
@@ -413,7 +534,7 @@ ${mode === 'global' ? globalSchema : specificSchema}`;
             throw new Error("AI 回傳格式異常 (JSON 解析失敗)，請再試一次。");
         }
 
-        // 6. 白名單縮限與資料清洗
+        // 6. 白名單縮限與資料清洗 (含保守語氣二次過濾)
         const strictWhitelist = [costChampion?.cardName, speedChampion?.cardName].filter(Boolean);
         const res = sanitizeAIResponse(rawJsonRes, strictWhitelist);
 
@@ -450,23 +571,23 @@ ${mode === 'global' ? globalSchema : specificSchema}`;
                     ${(asr.do_not_use_yet || []).map(a => `<div class="p-2 bg-danger text-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 small">🚫 <b>暫不建議：${formatMD(a.asset_name)}</b> - ${formatMD(a.reason)}</div>`).join('')}
                 </div>
 
-                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#6d28d9;"><svg class="lucide me-1"><use href="#icon-target"/></svg>高價值候選目的地 Top 3</h6>
+                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#6d28d9;"><svg class="lucide me-1"><use href="#icon-target"/></svg>高價值理論候選目的地</h6>
                 <div class="mb-4">
-                    ${(res.top_ranked_destinations || []).map(r => `
+                    ${(res.candidate_routes || []).map(r => `
                         <div class="card-box p-3 tdc-mb-3 border border-primary border-opacity-25 shadow-sm" style="background:#f8fafc; border-radius:16px;">
-                            <div class="fw-bold text-dark fs-6 tdc-mb-2" style="line-height:1.4;"><span class="badge bg-primary me-2">No.${r.rank}</span>${formatMD(r.route_name)}</div>
+                            <div class="fw-bold text-dark fs-6 tdc-mb-2" style="line-height:1.4;">${formatMD(r.route_name)}</div>
 
-                            <div class="small p-2 rounded-3 tdc-mb-2 ${String(r.feasibility_status).includes('達成') ? 'bg-success bg-opacity-10 text-success border border-success border-opacity-25' : 'bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25'}">
-                                <span class="fw-bold">${String(r.feasibility_status).includes('達成') ? '✅ 狀態：' : '⚠️ 狀態：'}</span>${formatMD(r.feasibility_status)}
+                            <div class="small p-2 rounded-3 tdc-mb-2 bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25">
+                                <span class="fw-bold">⚠️ 狀態：</span>${formatMD(r.current_verification_status)}
                             </div>
 
-                            <div class="small text-secondary tdc-mb-2" style="line-height:1.6;">${formatMD(r.value_potential)}</div>
+                            <div class="small text-secondary tdc-mb-2" style="line-height:1.6;">${formatMD(r.theoretical_value)}</div>
                             ${r.is_positioning_required ? `<div class="small bg-warning bg-opacity-10 border border-warning rounded-3 p-2 tdc-mb-2 text-dark"><b class="text-danger">⚠️ 需外站出發</b><br>${formatMD(r.positioning_strategy)}</div>` : ''}
                             <div class="tdc-flex flex-wrap gap-2 tdc-mb-2 border-top pt-2 mt-2">
                                 <span class="ai-tag tag-tax">稅費: ${formatMD(r.est_tax_burden)}</span>
-                                <span class="ai-tag tag-hub">補血難度: ${formatMD(r.topup_difficulty)}</span>
                             </div>
-                            <div class="small text-primary-dark fw-bold mt-1 bg-white p-2 rounded-3 border">✨ 結論：${formatMD(r.final_verdict)}</div>
+                            <div class="small text-danger fw-bold mt-1 bg-white p-2 rounded-3 border">🚨 風險提示：${formatMD(r.risk_note)}</div>
+                            <div class="small text-primary-dark fw-bold mt-2 bg-light p-2 rounded-3 border">✨ 建議定位：${formatMD(r.recommendation_level)}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -496,22 +617,24 @@ ${mode === 'global' ? globalSchema : specificSchema}`;
                     </div>
                 </div>
 
-                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#2563eb;"><svg class="lucide me-1"><use href="#icon-map"/></svg>四核心戰略解析</h6>
+                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#2563eb;"><svg class="lucide me-1"><use href="#icon-map"/></svg>四核心理論戰略推演</h6>
                 <div class="mb-4">
                     ${['direct_flight', 'low_tax', 'alliance_sweetspot', 'open_jaw_backup'].map(key => {
-                        const strat = (res.four_core_strategies || {})[key];
+                        const strat = (res.theoretical_paths || {})[key];
                         if (!strat) return '';
                         let title = ''; let icon = '';
-                        if(key==='direct_flight') { title='第一優先：兩點一線直飛'; icon='✈️'; }
-                        else if(key==='low_tax') { title='第二優先：低稅金航線'; icon='💰'; }
-                        else if(key==='alliance_sweetspot') { title='第三優先：同聯盟高CP'; icon='🤝'; }
-                        else if(key==='open_jaw_backup') { title='第四優先：開口備選'; icon='🗺️'; }
+                        if(key==='direct_flight') { title='路徑探討：兩點一線直飛'; icon='✈️'; }
+                        else if(key==='low_tax') { title='路徑探討：低稅金航線'; icon='💰'; }
+                        else if(key==='alliance_sweetspot') { title='路徑探討：同聯盟高CP'; icon='🤝'; }
+                        else if(key==='open_jaw_backup') { title='路徑探討：開口備選'; icon='🗺️'; }
 
                         return `
                         <div class="card-box p-3 tdc-mb-3 border-0 shadow-sm" style="background:#ffffff; border: 1px solid #e2e8f0; border-radius:16px;">
                             <div class="fw-bold fs-6 tdc-mb-2 text-primary-dark">${icon} ${title}</div>
                             <div class="small text-dark fw-bold tdc-mb-2 pb-2 border-bottom">${formatMD(strat.route_details)}</div>
-                            <div class="small text-secondary m-0" style="line-height:1.6;">${formatMD(strat.pros_cons)}</div>
+                            <div class="small text-warning-dark fw-bold mt-2 mb-1">⚠️ ${formatMD(strat.current_verification_status)}</div>
+                            <div class="small text-danger mt-1 mb-2">🚨 風險: ${formatMD(strat.risk_note)}</div>
+                            <div class="small text-secondary m-0" style="line-height:1.6;">稅金備註: ${formatMD(strat.tax_note)}</div>
                         </div>`;
                     }).join('')}
                 </div>
