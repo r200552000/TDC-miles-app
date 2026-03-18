@@ -197,7 +197,7 @@ const CARD_RULES = {
                 ctx.cat !== 'flight_cx' &&
                 !isMobilePay &&
                 (
-                    ['agoda', 'booking', 'klook'].some(w => ctx.kwKey.includes(w)) ||
+                    ['agoda', 'booking', 'hotels.com', 'hotels', 'expedia', 'klook', 'kkday'].some(w => ctx.kwKey.includes(w)) ||
                     ['昇恆昌', '免稅', '采盟', 'dfs'].some(w => ctx.kwKey.includes(w)) ||
                     ctx.group === 'duty_free' ||
                     (ctx.isForeign && ctx.pay === 'physical')
