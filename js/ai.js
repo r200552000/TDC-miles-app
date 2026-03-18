@@ -87,6 +87,17 @@ function enforceConservativePhrasing(text) {
     return sanitized;
 }
 
+// --- 去重 Helper ---
+const dedupeByAssetName = (arr) => {
+    const seen = new Set();
+    return arr.filter(item => {
+        const key = String(item.asset_name || '').trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+};
+
 // --- AI 回傳清洗與白名單過濾 (防白屏 & 防幽靈卡) ---
 function sanitizeAIResponse(res, topupWhitelist) {
     const cleaned = {};
@@ -119,29 +130,62 @@ function sanitizeAIResponse(res, topupWhitelist) {
     // --- Global Mode 洗滌 ---
     if (res.asset_strategy_review) {
         const asr = safeObject(res.asset_strategy_review);
-        let pUse = safeArray(asr.priority_use).map(i => {
+        
+        let pUse = [];
+        let kReserve = [];
+        let dNotUse = [];
+        
+        const isTransfer = (name) => name.includes('可轉點信用卡/飯店積分');
+        const transferMsg = '此為可靈活轉換的積分，較適合作為保留彈性的調度資產，現階段不建議直接併入單一航司哩程餘額計算。';
+
+        safeArray(asr.priority_use).forEach(i => {
             const si = safeObject(i);
-            return { asset_name: String(si.asset_name || ''), reason: safeConservativeStr(si.reason) };
+            const name = String(si.asset_name || '');
+            if (isTransfer(name)) {
+                kReserve.push({ asset_name: name, reason: transferMsg });
+            } else {
+                pUse.push({ asset_name: name, reason: safeConservativeStr(si.reason) });
+            }
         });
-        let kReserve = safeArray(asr.keep_in_reserve).map(i => {
+
+        safeArray(asr.keep_in_reserve).forEach(i => {
             const si = safeObject(i);
-            return { asset_name: String(si.asset_name || ''), reason: safeConservativeStr(si.reason) };
+            const name = String(si.asset_name || '');
+            if (isTransfer(name)) {
+                kReserve.push({ asset_name: name, reason: transferMsg });
+            } else {
+                kReserve.push({ asset_name: name, reason: safeConservativeStr(si.reason) });
+            }
         });
+
+        safeArray(asr.do_not_use_yet).forEach(i => {
+            const si = safeObject(i);
+            const name = String(si.asset_name || '');
+            if (isTransfer(name)) {
+                kReserve.push({ asset_name: name, reason: transferMsg });
+            } else {
+                dNotUse.push({ asset_name: name, reason: safeConservativeStr(si.reason) });
+            }
+        });
+
+        // 執行去重邏輯
+        pUse = dedupeByAssetName(pUse);
+        kReserve = dedupeByAssetName(kReserve);
+        dNotUse = dedupeByAssetName(dNotUse);
 
         if (pUse.length > 1) {
             const overflow = pUse.slice(1);
             pUse = [pUse[0]];
             kReserve = kReserve.concat(overflow);
+            // 由於可能從 pUse 溢出到 kReserve，再次去重
+            kReserve = dedupeByAssetName(kReserve);
         }
 
         cleaned.asset_strategy_review = {
             overall_status: safeConservativeStr(asr.overall_status),
             priority_use: pUse,
             keep_in_reserve: kReserve,
-            do_not_use_yet: safeArray(asr.do_not_use_yet).map(i => {
-                const si = safeObject(i);
-                return { asset_name: String(si.asset_name || ''), reason: safeConservativeStr(si.reason) };
-            })
+            do_not_use_yet: dNotUse
         };
     }
     
@@ -308,8 +352,9 @@ function assembleAIPayload(engineLogic, compactContext, globalSchema, specificSc
     const baseSystemInstructions = `[角色任務]: 你是一名深耕 ${currentYear} 年航空哩程領域的頂尖戰略顧問，負責分析使用者的真實資產並給出具備數學依據的保守決策報告。
 [鐵律]:
 1. 航空哩程【絕對不可跨航司相加】！禁止加總不同航空的哩程來告訴使用者「總共有多少哩」。評估兌換時，只能基於「單一目標航司哩程」+「可轉入該航司的通用積分」來獨立計算。
-2. blockedRawAssets 是無法轉換的點數，絕對不可計入計算。
-3. 絕對嚴格返回純 JSON 格式，禁止任何 Markdown 標記 (\`\`\`json 等)。
+2. 對於「可轉點信用卡/飯店積分」(transfer型資產)，必須將其視為「可靈活轉換的積分」，建議歸類為「建議保留(keep_in_reserve)」，並說明其較適合作為保留彈性的調度資產，現階段不建議直接併入單一航司餘額。絕對不可將其描述為「無法轉換」或「暫不建議」。
+3. blockedRawAssets (raw型資產) 才是無法轉換的點數，絕對不可計入計算。
+4. 絕對嚴格返回純 JSON 格式，禁止任何 Markdown 標記 (\`\`\`json 等)。
 
 [決策要求]: ${engineLogic}
 ${typeof AI_PROMPT_PREFERENCES !== 'undefined' && AI_PROMPT_PREFERENCES ? '\n[戰略偏好與限制]:\n' + AI_PROMPT_PREFERENCES : ''}
@@ -338,7 +383,15 @@ async function startAIDiagnosis(mode) {
     const contentBox = document.getElementById('ai-report-content');
     const modalTitle = document.getElementById('ai-modal-title');
 
-    modalTitle.innerHTML = mode === 'global' ? '<svg class="me-2" style="width:20px;height:20px; color:#6d28d9;"><use href="#icon-sparkle"/></svg>全局資產價值指標 (保守評估)' : '<svg class="me-2" style="width:20px;height:20px; color:#2563eb;"><use href="#icon-target"/></svg>指定航線達成方案 (保守推演)';
+    modalTitle.style.display = 'inline-flex';
+    modalTitle.style.alignItems = 'center';
+    modalTitle.style.gap = '8px';
+    modalTitle.style.whiteSpace = 'nowrap';
+    modalTitle.style.flexWrap = 'nowrap';
+    modalTitle.innerHTML = mode === 'global' 
+        ? '<svg style="width:20px;height:20px; color:#6d28d9; flex-shrink: 0;"><use href="#icon-sparkle"/></svg><span>全局資產價值指標（保守評估）</span>' 
+        : '<svg style="width:20px;height:20px; color:#2563eb; flex-shrink: 0;"><use href="#icon-target"/></svg><span>指定航線達成方案（保守推演）</span>';
+
     contentBox.innerHTML = '<div class="tdc-text-center py-5 text-muted"><div class="spinner-border text-primary tdc-mb-3"></div><br>正在連接 Gemini 大腦，執行轉點估值與理論航線兵推...</div>';
     showModal('aiReportModal');
 
