@@ -198,6 +198,8 @@ const CARD_RULES = {
                 !isMobilePay &&
                 (
                     ['agoda', 'booking', 'klook'].some(w => ctx.kwKey.includes(w)) ||
+                    ['昇恆昌', '免稅', '采盟', 'dfs'].some(w => ctx.kwKey.includes(w)) ||
+                    ctx.group === 'duty_free' ||
                     (ctx.isForeign && ctx.pay === 'physical')
                 )
             ) {
