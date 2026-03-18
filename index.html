@@ -397,14 +397,6 @@
             <div class="small text-secondary mt-1 mb-3 px-1" style="line-height: 1.5; text-align: justify;">
                 💡 本工具為免費提供，AI 診斷需使用您個人的 Google Gemini API 金鑰。系統預設呼叫 Flash 類輕量模型，一般日常使用通常落在 Google 提供的免費額度範圍內。若您的 Google 專案已啟用付費，或您改用付費模型、超過免費額度，仍可能依官方規則計費，請自行留意額度狀況。
             </div>
-            <div class="tdc-flex tdc-justify-between tdc-align-center mt-3 tdc-mb-2">
-              <label class="fw-bold text-danger small tdc-m-0">GitHub Gist Token (維護者權限)</label>
-            </div>
-            <div class="input-wrapper">
-                <input type="password" id="github-token" class="form-control rounded-pill border-danger pe-5" placeholder="一般使用者請留空">
-                <button class="btn-inline-clear" type="button" onclick="clearInput('github-token')">⊗</button>
-            </div>
-            <div class="small text-muted mt-1 px-2">填寫此欄位，AI 戰報將自動產出 rules.json 補丁代碼區塊。</div>
             <div class="security-alert-box mt-3">
               <div class="fw-bold tdc-mb-1 tdc-flex tdc-align-center"><svg class="lucide me-1"><use href="#icon-shield"/></svg> 資安與隱私承諾</div>
               <ul class="mb-0 ps-3">
@@ -451,9 +443,17 @@
   <div class="modal fade" id="aiReportModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content p-3 border-0" style="background: #f8fafc;" id="ai-modal-content-wrap">
-        <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-3">
-          <h5 class="fw-bold tdc-m-0 tdc-flex tdc-align-center" id="ai-modal-title" style="color: #6d28d9;"><svg class="me-2" style="width:20px;height:20px;"><use href="#icon-sparkle"/></svg>系統診斷回報</h5>
-          <div class="tdc-flex tdc-align-center gap-2">
+        <div class="tdc-flex tdc-justify-between tdc-align-start tdc-mb-3" style="gap:12px;">
+          <h5
+            class="fw-bold tdc-m-0"
+            id="ai-modal-title"
+            style="color:#6d28d9; flex:1 1 auto; min-width:0; line-height:1.35; word-break:break-word;">
+            <span class="tdc-flex tdc-align-start" style="gap:8px;">
+              <svg class="flex-shrink-0" style="width:20px;height:20px; margin-top:2px;"><use href="#icon-sparkle"/></svg>
+              <span>系統診斷回報</span>
+            </span>
+          </h5>
+          <div class="tdc-flex tdc-align-center gap-2" style="flex:0 0 auto;">
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle p-1" onclick="toggleAITextSize()" title="切換字體大小"><svg class="lucide" style="width:16px;height:16px;"><use href="#icon-type"/></svg></button>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
