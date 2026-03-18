@@ -377,9 +377,21 @@ function renderResults(list) {
     });
 }
 
+// 【覆蓋 1：initToggleConfirms 完整版】
 function initToggleConfirms() {
     const flyModeCheckbox = document.getElementById('flyMode');
     const birthdayModeCheckbox = document.getElementById('birthdayMode');
+
+    const calculateIfAmountReady = () => {
+        const amtInput = document.getElementById('amount');
+        if (amtInput) {
+            const amtVal = parseFloat(amtInput.value);
+            // 只有在畫面上已有有效且大於 0 的金額時，才執行 calculate()
+            if (!isNaN(amtVal) && amtVal > 0 && typeof calculate === 'function') {
+                calculate();
+            }
+        }
+    };
 
     if (flyModeCheckbox && !flyModeCheckbox.dataset.confirmBound) {
         flyModeCheckbox.dataset.confirmBound = '1';
@@ -405,11 +417,10 @@ function initToggleConfirms() {
                 
                 if (!confirm(msg)) {
                     this.checked = false;
+                    return; // 使用者取消時直接返回，不觸發重新計算
                 }
             }
-            if (typeof calculate === 'function') {
-                calculate();
-            }
+            calculateIfAmountReady();
         });
     }
 
@@ -427,11 +438,10 @@ function initToggleConfirms() {
                 
                 if (!confirm(msg)) {
                     this.checked = false;
+                    return; // 使用者取消時直接返回，不觸發重新計算
                 }
             }
-            if (typeof calculate === 'function') {
-                calculate();
-            }
+            calculateIfAmountReady();
         });
     }
 }
