@@ -50,12 +50,46 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-hand); font-weight: 700; color: var(
 body.confirm-modal-open .modal-backdrop:last-child { z-index: 2050 !important; }
 
 /* v15.2 通用版面與元件 */
-.header { background: #ffffff; padding: 15px 20px 25px 20px; border-bottom-left-radius: 36px; border-bottom-right-radius: 36px; position: sticky; top: 0; box-shadow: var(--shadow-draw); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; height: 90px; border-bottom: 3px dashed #bae6fd; z-index: 100; box-sizing: border-box; }
+.header {
+  background: #ffffff;
+  padding: 15px 20px 20px 20px;
+  border-bottom-left-radius: 36px;
+  border-bottom-right-radius: 36px;
+  position: sticky;
+  top: 0;
+  box-shadow: var(--shadow-draw);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 90px;
+  height: auto;
+  border-bottom: 3px dashed #bae6fd;
+  z-index: 100;
+  box-sizing: border-box;
+}
 .header-icon { width: 40px; height: 40px; background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.1rem; transform: rotate(-5deg); margin-right: 10px; flex-shrink: 0; }
 
 .header-title { min-width: 0; flex-grow: 1; margin-right: 10px; }
-.header-title h5 { margin: 0; font-size: 1rem; color: var(--primary-dark); line-height: 1.2; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-title small { color: var(--text-light); font-size: 0.75rem; font-family: var(--font-hand); white-space: nowrap; }
+.header-title h5 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--primary-dark);
+  line-height: 1.2;
+  font-weight: 900;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+}
+.header-title small {
+  color: var(--text-light);
+  font-size: 0.75rem;
+  font-family: var(--font-hand);
+  white-space: normal;
+  display: block;
+  line-height: 1.2;
+}
 
 .header-btn-group { flex-shrink: 0; display: flex; gap: 8px; }
 @media (max-width: 380px) { .btn-text-hide { display: none; } }
