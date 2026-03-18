@@ -191,6 +191,8 @@ function enforceTransferReserveBuckets(asr) {
                 kReserve.push(item);
             }
         });
+        // 確保溢出後仍做去重
+        kReserve = dedupeByAssetName(kReserve);
     }
 
     return {
@@ -493,25 +495,22 @@ ${mode === 'global' ? globalSchema : specificSchema}`;
 
 async function startAIDiagnosis(mode) {
     const key = safeGetItem('GEMINI_API_KEY');
-    if (!key) {
-        showModal('aiIntroModal');
-        return;
-    }
+    if (!key) { showModal('aiIntroModal'); return; }
 
     const contentBox = document.getElementById('ai-report-content');
     const modalTitle = document.getElementById('ai-modal-title');
 
-    modalTitle.style.display = 'inline-flex';
-    modalTitle.style.alignItems = 'center';
+    modalTitle.style.display = 'flex';
+    modalTitle.style.width = '100%';
+    modalTitle.style.minWidth = '0';
+    modalTitle.style.alignItems = 'flex-start';
     modalTitle.style.gap = '8px';
-    modalTitle.style.whiteSpace = 'nowrap';
-    modalTitle.style.flexWrap = 'nowrap';
-    modalTitle.style.maxWidth = '100%';
-    modalTitle.style.overflow = 'hidden';
-
-    modalTitle.innerHTML = mode === 'global'
-        ? '<svg style="width:20px;height:20px; color:#6d28d9; flex-shrink: 0;"><use href="#icon-sparkle"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">全局資產價值指標（保守評估）</span>'
-        : '<svg style="width:20px;height:20px; color:#2563eb; flex-shrink: 0;"><use href="#icon-target"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">指定航線達成方案（保守推演）</span>';
+    modalTitle.style.whiteSpace = 'normal';
+    modalTitle.style.overflow = 'visible';
+    
+    modalTitle.innerHTML = mode === 'global' 
+        ? '<svg style="width:20px;height:20px; color:#6d28d9; flex-shrink: 0; margin-top: 2px;"><use href="#icon-sparkle"/></svg><span style="flex: 1; min-width: 0; white-space: normal; line-height: 1.35;">全局資產價值指標（保守評估）</span>' 
+        : '<svg style="width:20px;height:20px; color:#2563eb; flex-shrink: 0; margin-top: 2px;"><use href="#icon-target"/></svg><span style="flex: 1; min-width: 0; white-space: normal; line-height: 1.35;">指定航線達成方案（保守推演）</span>';
 
     contentBox.innerHTML = `
         <div class="tdc-text-center py-5 text-muted">
@@ -540,38 +539,25 @@ async function startAIDiagnosis(mode) {
             let currentVal = Number(item.current);
             if (isNaN(currentVal)) currentVal = 0;
 
-            const safeName = (typeof item.name === 'string' && item.name.trim() !== '')
-                ? item.name.trim()
-                : '未命名資產';
-
+            const safeName = (typeof item.name === 'string' && item.name.trim() !== '') ? item.name.trim() : '未命名資產';
             const safeType = ['raw', 'airline', 'transfer'].includes(item.type) ? item.type : 'raw';
 
-            if (safeType === 'raw') {
+            if(safeType === 'raw') {
                 blockedRawAssets.push({ name: safeName, raw_points: currentVal });
                 totalRawPoints += currentVal;
             } else {
-                if (!plannerSelectedAssets.has(idx)) return;
+                if(!plannerSelectedAssets.has(idx)) return;
 
                 let uPts = Number(item.unitPoints);
                 if (isNaN(uPts) || uPts === 0) uPts = 1;
+                let uMiles = Number(item.unitMiles) || 0;
+                let bReq = Number(item.bonusReq) || 0;
+                let bGive = Number(item.bonusGive) || 0;
 
-                const uMiles = Number(item.unitMiles) || 0;
-                const bReq = Number(item.bonusReq) || 0;
-                const bGive = Number(item.bonusGive) || 0;
-
-                const effMiles = safeType === 'transfer'
-                    ? Math.trunc(currentVal * (uMiles / uPts)) + ((bReq > 0) ? Math.trunc(currentVal / bReq) * bGive : 0)
-                    : currentVal;
-
+                let effMiles = safeType === 'transfer' ? Math.trunc(currentVal * (uMiles/uPts)) + ((bReq > 0) ? Math.trunc(currentVal / bReq) * bGive : 0) : currentVal;
                 totalEffectiveMiles += effMiles;
-
-                const srcProg = safeName + (safeType === 'airline' ? ' (航空哩程)' : ' (可轉點信用卡/飯店積分)');
-                normalizedAssets.push({
-                    source_program: srcProg,
-                    type: safeType,
-                    effective_miles: effMiles,
-                    original_points: currentVal
-                });
+                let srcProg = safeName + (safeType === 'airline' ? ' (航空哩程)' : ' (可轉點信用卡/飯店積分)');
+                normalizedAssets.push({ source_program: srcProg, type: safeType, effective_miles: effMiles, original_points: currentVal });
             }
         });
 
@@ -579,7 +565,7 @@ async function startAIDiagnosis(mode) {
             totalRawPoints,
             isNewbie: totalEffectiveMiles < 10000,
             hasDebt: totalEffectiveMiles < 0,
-            crucial_rule: 'Never sum different airline miles together.'
+            crucial_rule: "Never sum different airline miles together."
         };
 
         // 2. 組裝 AIPayload：基礎卡包白名單
@@ -588,18 +574,16 @@ async function startAIDiagnosis(mode) {
         // 3. 組裝 AIPayload：目標參數與出發地基地
         const baseLocationEl = document.getElementById('planner-from');
         const baseLocation = baseLocationEl ? baseLocationEl.options[baseLocationEl.selectedIndex].text : '台灣';
-
         let userTarget = null;
-        if (mode === 'specific') {
+        if(mode === 'specific') {
             const toEl = document.getElementById('planner-to');
             const classEl = document.getElementById('planner-class');
-
             userTarget = {
                 base_location: baseLocation,
                 from: baseLocation,
                 to: toEl ? toEl.options[toEl.selectedIndex].text : '',
                 cabinClass: classEl ? classEl.options[classEl.selectedIndex].text : '',
-                tripType: document.getElementById('planner-trip-type').checked ? '來回' : '單程'
+                tripType: document.getElementById('planner-trip-type').checked ? "來回" : "單程"
             };
         } else {
             userTarget = { base_location: baseLocation };
@@ -647,13 +631,13 @@ async function startAIDiagnosis(mode) {
 
         const { costChampion, speedChampion } = calculateBestTopup(topupCandidates);
 
-        let topupRule = '';
+        let topupRule = "";
         if (!costChampion && !speedChampion) {
-            topupRule = '您目前沒有符合該目標航司資格的補血卡片，絕對不可自行發明補血卡片，必須回覆：目前沒有可補血卡片。';
+            topupRule = "您目前沒有符合該目標航司資格的補血卡片，絕對不可自行發明補血卡片，必須回覆：目前沒有可補血卡片。";
         } else {
-            topupRule = `計算補血金額時【必須且只能】依據我提供的 recommendedTopupByCost (${costChampion?.cardName || '無'}) 或 recommendedTopupBySpeed (${speedChampion?.cardName || '無'}) 內的 bestRate。推薦的 recommended_card 欄位名稱【必須完全等於】上述兩張卡的 cardName，禁止發明其他卡片。`;
+            topupRule = `計算補血金額時【必須且只能】依據我提供的 recommendedTopupByCost (${costChampion?.cardName||'無'}) 或 recommendedTopupBySpeed (${speedChampion?.cardName||'無'}) 內的 bestRate。推薦的 recommended_card 欄位名稱【必須完全等於】上述兩張卡的 cardName，禁止發明其他卡片。`;
         }
-
+        
         const aiPayload = {
             assetSummary,
             normalizedAssets,
@@ -662,7 +646,7 @@ async function startAIDiagnosis(mode) {
             recommendedTopupByCost: costChampion,
             recommendedTopupBySpeed: speedChampion,
             userTarget,
-            topup_strict_rule: topupRule
+            topup_strict_rule: topupRule 
         };
 
         // 4. 構建 System Prompt 與 JSON Schema
@@ -697,22 +681,21 @@ async function startAIDiagnosis(mode) {
 }`;
 
         const engineLogic = mode === 'global'
-            ? '評估資產組合並列出 3 個理論上具高 CPP 價值的候選目的地。禁止使用絕對排名，必須加上現況驗證提示。若是利用外站的亮點，必須在 is_positioning_required 標示 true，並於 positioning_strategy 明確評估銜接難度與風險。'
-            : '針對目標航線，提供 4 套具備實質差異的理論策略路徑 (直飛/低稅金/聯盟套利/外站)。精算理論差額，並嚴格使用 JS 算好的冠軍卡推算補血算式。所有路徑必須加上保守的現況風險提示。';
+            ? `評估資產組合並列出 3 個理論上具高 CPP 價值的候選目的地。禁止使用絕對排名，必須加上現況驗證提示。若是利用外站的亮點，必須在 is_positioning_required 標示 true，並於 positioning_strategy 明確評估銜接難度與風險。`
+            : `針對目標航線，提供 4 套具備實質差異的理論策略路徑 (直飛/低稅金/聯盟套利/外站)。精算理論差額，並嚴格使用 JS 算好的冠軍卡推算補血算式。所有路徑必須加上保守的現況風險提示。`;
 
         const compactContext = buildCompactAIDiagnosisContext(aiPayload, mode);
         const requestPayload = assembleAIPayload(engineLogic, compactContext, globalSchema, specificSchema, mode);
 
         // 5. 呼叫 API 與錯誤分級處理
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestPayload)
         });
 
         if (!response.ok) {
             if (response.status === 400 || response.status === 403 || response.status === 429) {
-                throw new Error('API 金鑰無效、權限不足或額度限制，請至設定頁確認。(提醒：目前系統預設使用 Gemini Flash 類模型，通常落在免費額度範圍內；若專案已啟用付費或超過額度，依官方規則計費)');
+                throw new Error('API 金鑰無效、權限不足，或目前請求次數 / 額度已達限制，請至設定頁確認。');
             }
             throw new Error(`伺服器回應異常 (Status: ${response.status})`);
         }
@@ -720,22 +703,18 @@ async function startAIDiagnosis(mode) {
         let data;
         try {
             data = await response.json();
-        } catch (e) {
-            throw new Error('API 回傳格式異常 (非預期結構)。');
+        } catch(e) {
+            throw new Error("API 回傳格式異常 (非預期結構)。");
         }
 
-        let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         let rawJsonRes;
-
         try {
-            const jsonStart = aiText.indexOf('{');
-            const jsonEnd = aiText.lastIndexOf('}');
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                aiText = aiText.substring(jsonStart, jsonEnd + 1);
-            }
+            const jsonStart = aiText.indexOf('{'); const jsonEnd = aiText.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) { aiText = aiText.substring(jsonStart, jsonEnd + 1); }
             rawJsonRes = JSON.parse(aiText);
-        } catch (e) {
-            throw new Error('AI 回傳格式異常 (JSON 解析失敗)，請再試一次。');
+        } catch(e) {
+            throw new Error("AI 回傳格式異常 (JSON 解析失敗)，請再試一次。");
         }
 
         // 6. 白名單縮限與資料清洗 (含保守語氣二次過濾)
@@ -745,7 +724,6 @@ async function startAIDiagnosis(mode) {
         if (typeof normalizeAssetPriorityBuckets === 'function') {
             res.asset_strategy_review = normalizeAssetPriorityBuckets(res.asset_strategy_review);
         }
-
         res.asset_strategy_review = enforceTransferReserveBuckets(res.asset_strategy_review);
 
         if (typeof applyFormatToAllFields === 'function') {
@@ -759,30 +737,13 @@ async function startAIDiagnosis(mode) {
 
         let extraWarningHtml = '';
         if (hasCustomAirline) {
-            extraWarningHtml = `
-                <div class="p-3 mb-3 bg-warning bg-opacity-10 border border-warning rounded-3 small text-dark" style="line-height: 1.5; text-align: justify;">
-                    ⚠️ <b class="text-danger">系統高風險提示：</b><br>
-                    偵測到您的資產庫包含自由新增且非系統已知之航司。系統推薦路線以內建卡別主要可兌換之航司為主；針對自建航司，系統辨識力有限，AI 推估錯誤率顯著較高。<br>
-                    請自行查核該航司官方開票、兌換與可補血規則，本程式不負相關責任。
-                </div>
-            `;
+            extraWarningHtml = `<div class="p-3 mb-3 bg-warning bg-opacity-10 border border-warning rounded-3 small text-dark" style="line-height: 1.5; text-align: justify;">⚠️ <b class="text-danger">系統高風險提示：</b><br>偵測到您的資產庫包含自由新增且非系統已知之航司。系統推薦路線以內建卡別主要可兌換之航司為主；針對自建航司，系統辨識力有限，AI 推估錯誤率顯著較高。<br>請自行查核該航司官方開票、兌換與可補血規則，本程式不負相關責任。</div>`;
         }
 
-        const fixedDisclaimer = `
-            ${extraWarningHtml}
-            <div class="mt-4 pt-3 border-top tdc-text-center">
-                <small class="text-muted d-block" style="line-height: 1.6; text-align: justify;">
-                    【系統聲明】您的卡片費率與現有哩程餘額為系統已知事實；預估消耗、稅費、可行性與機位狀態為 AI 策略推估，實際仍以官方航司開票與兌換規則為準。<br><br>
-                    本系統推薦路線以內建卡別主要可兌換之航司路線為主；使用者自由新增之航司為系統難以完整判別之對象，錯誤率較高。若因自行新增航司或卡別而產生計算、判定或推薦落差，本程式不負相關責任。<br><br>
-                    💡 <b>API 計費說明</b>：目前系統預設使用 Gemini Flash 類模型，通常落在 Google 提供的免費額度範圍內；但若您個人的 Google 專案已啟用付費、改用付費模型或超過免費額度，仍可能依 Google 官方規則計費。<br><br>
-                    <span class="text-primary-dark fw-bold">${formatMD(res.contextual_note)}</span>
-                </small>
-            </div>
-        `;
+        const fixedDisclaimer = `${extraWarningHtml}<div class="mt-4 pt-3 border-top tdc-text-center"><small class="text-muted d-block" style="line-height: 1.6; text-align: justify;">【系統聲明】您的卡片費率與現有哩程餘額為系統已知事實；預估消耗、稅費、可行性與機位狀態為 AI 策略推估，實際仍以官方航司開票與兌換規則為準。<br><br>本系統推薦路線以內建卡別主要可兌換之航司路線為主；使用者自由新增之航司為系統難以完整判別之對象，錯誤率較高。若因自行新增航司或卡別而產生計算、判定或推薦落差，本程式不負相關責任。<br><br>💡 <b>API 計費說明</b>：目前系統預設使用 Gemini Flash 類模型，通常落在 Google 提供的免費額度範圍內；但若您個人的 Google 專案已啟用付費、改用付費模型或超過免費額度，仍可能依 Google 官方規則計費。<br><br><span class="text-primary-dark fw-bold">${formatMD(res.contextual_note)}</span></small></div>`;
 
         if (mode === 'global') {
             const asr = res.asset_strategy_review || {};
-
             contentBox.innerHTML = `
                 <div class="ai-level1-card mb-4 shadow-sm" style="background:#1e293b;">
                     <div class="text-muted small tdc-mb-2">資產戰略總評</div>
@@ -795,10 +756,7 @@ async function startAIDiagnosis(mode) {
                     ${(asr.do_not_use_yet || []).map(a => `<div class="p-2 bg-danger text-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 small">🚫 <b>暫不建議：${formatMD(a.asset_name)}</b> - ${formatMD(a.reason)}</div>`).join('')}
                 </div>
 
-                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#6d28d9;">
-                    <svg class="lucide me-1"><use href="#icon-target"/></svg>高價值理論候選目的地
-                </h6>
-
+                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#6d28d9;"><svg class="lucide me-1"><use href="#icon-target"/></svg>高價值理論候選目的地</h6>
                 <div class="mb-4">
                     ${(res.candidate_routes || []).map(r => `
                         <div class="card-box p-3 tdc-mb-3 border border-primary border-opacity-25 shadow-sm" style="background:#f8fafc; border-radius:16px;">
@@ -809,127 +767,85 @@ async function startAIDiagnosis(mode) {
                             </div>
 
                             <div class="small text-secondary tdc-mb-2" style="line-height:1.6;">${formatMD(r.theoretical_value)}</div>
-
-                            ${r.is_positioning_required
-                                ? `<div class="small bg-warning bg-opacity-10 border border-warning rounded-3 p-2 tdc-mb-2 text-dark"><b class="text-danger">⚠️ 需外站出發</b><br>${formatMD(r.positioning_strategy)}</div>`
-                                : ''}
-
+                            ${r.is_positioning_required ? `<div class="small bg-warning bg-opacity-10 border border-warning rounded-3 p-2 tdc-mb-2 text-dark"><b class="text-danger">⚠️ 需外站出發</b><br>${formatMD(r.positioning_strategy)}</div>` : ''}
                             <div class="tdc-flex flex-wrap gap-2 tdc-mb-2 border-top pt-2 mt-2">
                                 <span class="ai-tag tag-tax">稅費: ${formatMD(r.est_tax_burden)}</span>
                             </div>
-
                             <div class="small text-danger fw-bold mt-1 bg-white p-2 rounded-3 border">🚨 風險提示：${formatMD(r.risk_note)}</div>
                             <div class="small text-primary-dark fw-bold mt-2 bg-light p-2 rounded-3 border">✨ 建議定位：${formatMD(r.recommendation_level)}</div>
                         </div>
                     `).join('')}
                 </div>
 
-                ${(res.not_recommended_routes && res.not_recommended_routes.length > 0)
-                    ? `
-                    <h6 class="fw-bold tdc-mb-2 px-1 mt-3 text-secondary">
-                        <svg class="lucide me-1"><use href="#icon-warn"/></svg>不推薦浪費清單
-                    </h6>
-                    <div class="bg-light border rounded-3 p-2 mb-3">
-                        ${res.not_recommended_routes.map(r => `<div class="small tdc-mb-1 text-muted">• <b class="text-dark">${formatMD(r.destination)}</b>: ${formatMD(r.reason)}</div>`).join('')}
-                    </div>
-                    `
-                    : ''}
+                ${(res.not_recommended_routes && res.not_recommended_routes.length > 0) ? `
+                <h6 class="fw-bold tdc-mb-2 px-1 mt-3 text-secondary"><svg class="lucide me-1"><use href="#icon-warn"/></svg>不推薦浪費清單</h6>
+                <div class="bg-light border rounded-3 p-2 mb-3">
+                    ${res.not_recommended_routes.map(r => `<div class="small tdc-mb-1 text-muted">• <b class="text-dark">${formatMD(r.destination)}</b>: ${formatMD(r.reason)}</div>`).join('')}
+                </div>` : ''}
 
                 ${fixedDisclaimer}
             `;
         } else {
             const fs = res.feasibility || {};
-
             contentBox.innerHTML = `
                 <div class="p-3 tdc-mb-3 border-0 shadow-sm" style="background:#f8fafc; border-radius:16px; border-left: 4px solid ${fs.is_achievable ? '#10b981' : '#f59e0b'} !important;">
                     <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-2">
                         <h6 class="fw-bold tdc-m-0 text-dark">達成狀態判定</h6>
-                        <span class="badge ${fs.is_achievable ? 'bg-success' : 'bg-warning text-dark'} px-3">
-                            ${fs.is_achievable ? '✅ 資源足夠' : '⚠️ 尚有缺口'}
-                        </span>
+                        <span class="badge ${fs.is_achievable ? 'bg-success' : 'bg-warning text-dark'} px-3">${fs.is_achievable ? '✅ 資源足夠' : '⚠️ 尚有缺口'}</span>
                     </div>
-
                     <div class="progress tdc-mb-2" style="height: 8px;">
-                        <div class="progress-bar ${fs.is_achievable ? 'bg-success' : 'bg-warning'}" style="width: ${Math.min(100, ((fs.current_effective_miles || 0) / (fs.target_est_miles || 1)) * 100)}%"></div>
+                        <div class="progress-bar ${fs.is_achievable ? 'bg-success' : 'bg-warning'}" style="width: ${Math.min(100, ((fs.current_effective_miles || 0)/(fs.target_est_miles || 1))*100)}%"></div>
                     </div>
-
                     <div class="tdc-flex tdc-justify-between small fw-bold text-muted">
                         <span>預估目標: ${Number(fs.target_est_miles).toLocaleString()}</span>
-                        <span class="${fs.is_achievable ? 'text-success' : 'text-danger'}">
-                            ${fs.is_achievable ? '火力充足' : `缺口: ${Number(fs.shortfall).toLocaleString()} 哩`}
-                        </span>
+                        <span class="${fs.is_achievable ? 'text-success' : 'text-danger'}">${fs.is_achievable ? '火力充足' : `缺口: ${Number(fs.shortfall).toLocaleString()} 哩`}</span>
                     </div>
                 </div>
 
-                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#2563eb;">
-                    <svg class="lucide me-1"><use href="#icon-map"/></svg>四核心理論戰略推演
-                </h6>
-
+                <h6 class="fw-bold tdc-mb-3 px-1 mt-4" style="color:#2563eb;"><svg class="lucide me-1"><use href="#icon-map"/></svg>四核心理論戰略推演</h6>
                 <div class="mb-4">
                     ${['direct_flight', 'low_tax', 'alliance_sweetspot', 'open_jaw_backup'].map(key => {
                         const strat = (res.theoretical_paths || {})[key];
                         if (!strat) return '';
-
-                        let title = '';
-                        let icon = '';
-
-                        if (key === 'direct_flight') { title = '路徑探討：兩點一線直飛'; icon = '✈️'; }
-                        else if (key === 'low_tax') { title = '路徑探討：低稅金航線'; icon = '💰'; }
-                        else if (key === 'alliance_sweetspot') { title = '路徑探討：同聯盟高CP'; icon = '🤝'; }
-                        else if (key === 'open_jaw_backup') { title = '路徑探討：開口備選'; icon = '🗺️'; }
+                        let title = ''; let icon = '';
+                        if(key==='direct_flight') { title='路徑探討：兩點一線直飛'; icon='✈️'; }
+                        else if(key==='low_tax') { title='路徑探討：低稅金航線'; icon='💰'; }
+                        else if(key==='alliance_sweetspot') { title='路徑探討：同聯盟高CP'; icon='🤝'; }
+                        else if(key==='open_jaw_backup') { title='路徑探討：開口備選'; icon='🗺️'; }
 
                         return `
-                            <div class="card-box p-3 tdc-mb-3 border-0 shadow-sm" style="background:#ffffff; border: 1px solid #e2e8f0; border-radius:16px;">
-                                <div class="fw-bold fs-6 tdc-mb-2 text-primary-dark">${icon} ${title}</div>
-                                <div class="small text-dark fw-bold tdc-mb-2 pb-2 border-bottom">${formatMD(strat.route_details)}</div>
-                                <div class="small text-warning-dark fw-bold mt-2 mb-1">⚠️ ${formatMD(strat.current_verification_status)}</div>
-                                <div class="small text-danger mt-1 mb-2">🚨 風險: ${formatMD(strat.risk_note)}</div>
-                                <div class="small text-secondary m-0" style="line-height:1.6;">稅金備註: ${formatMD(strat.tax_note)}</div>
-                            </div>
-                        `;
+                        <div class="card-box p-3 tdc-mb-3 border-0 shadow-sm" style="background:#ffffff; border: 1px solid #e2e8f0; border-radius:16px;">
+                            <div class="fw-bold fs-6 tdc-mb-2 text-primary-dark">${icon} ${title}</div>
+                            <div class="small text-dark fw-bold tdc-mb-2 pb-2 border-bottom">${formatMD(strat.route_details)}</div>
+                            <div class="small text-warning-dark fw-bold mt-2 mb-1">⚠️ ${formatMD(strat.current_verification_status)}</div>
+                            <div class="small text-danger mt-1 mb-2">🚨 風險: ${formatMD(strat.risk_note)}</div>
+                            <div class="small text-secondary m-0" style="line-height:1.6;">稅金備註: ${formatMD(strat.tax_note)}</div>
+                        </div>`;
                     }).join('')}
                 </div>
 
-                ${(!fs.is_achievable && Number(fs.shortfall) > 0)
-                    ? `
-                    <div class="ai-level4-box shadow-sm mb-4 bg-warning bg-opacity-10 border-warning">
-                        <div class="tdc-mb-3 text-warning fw-bold tdc-flex tdc-align-center" style="color:#b45309;">
-                            <svg class="lucide me-2"><use href="#icon-calc"/></svg>精確補血指派
-                        </div>
-
-                        ${(res.topup_recommendations && res.topup_recommendations.length > 0)
-                            ? res.topup_recommendations.map(t => `
-                                <div class="bg-white p-3 rounded-3 border tdc-mb-2">
-                                    <div class="fw-bold text-dark tdc-mb-1">${formatMD(t.topup_type)}：使用 ${formatMD(t.recommended_card)}</div>
-                                    <div class="small text-muted tdc-mb-2">觸發情境：${formatMD(t.trigger_scenario)}</div>
-                                    <div class="ai-json-patch text-success border border-success bg-success bg-opacity-10 tdc-mb-2">${formatMD(t.math_formula)}</div>
-                                    <div class="tdc-text-end fw-bold text-danger fs-5">應刷 NT$ ${Number(t.required_spend_twd).toLocaleString()}</div>
-                                </div>
-                            `).join('')
-                            : `
-                                <div class="bg-white p-4 rounded-3 border tdc-text-center">
-                                    <svg class="lucide text-muted tdc-mb-2" style="width:24px;height:24px;margin: 0 auto 8px; display: block;">
-                                        <use href="#icon-warn"/>
-                                    </svg>
-                                    <div class="small text-muted fw-bold">AI 補血建議未通過系統驗證，已自動隱藏，<br>請重新執行一次診斷。</div>
-                                </div>
-                            `}
-                    </div>
-                    `
-                    : ''}
+                ${(!fs.is_achievable && Number(fs.shortfall) > 0) ? `
+                <div class="ai-level4-box shadow-sm mb-4 bg-warning bg-opacity-10 border-warning">
+                    <div class="tdc-mb-3 text-warning fw-bold tdc-flex tdc-align-center" style="color:#b45309;"><svg class="lucide me-2"><use href="#icon-calc"/></svg>精確補血指派</div>
+                    ${(res.topup_recommendations && res.topup_recommendations.length > 0) ?
+                        res.topup_recommendations.map(t => `
+                        <div class="bg-white p-3 rounded-3 border tdc-mb-2">
+                            <div class="fw-bold text-dark tdc-mb-1">${formatMD(t.topup_type)}：使用 ${formatMD(t.recommended_card)}</div>
+                            <div class="small text-muted tdc-mb-2">觸發情境：${formatMD(t.trigger_scenario)}</div>
+                            <div class="ai-json-patch text-success border border-success bg-success bg-opacity-10 tdc-mb-2">${formatMD(t.math_formula)}</div>
+                            <div class="tdc-text-end fw-bold text-danger fs-5">應刷 NT$ ${Number(t.required_spend_twd).toLocaleString()}</div>
+                        </div>`).join('')
+                        : `<div class="bg-white p-4 rounded-3 border tdc-text-center">
+                            <svg class="lucide text-muted tdc-mb-2" style="width:24px;height:24px;margin: 0 auto 8px; display: block;"><use href="#icon-warn"/></svg>
+                            <div class="small text-muted fw-bold">AI 補血建議未通過系統驗證，已自動隱藏，<br>請重新執行一次診斷。</div>
+                           </div>`
+                    }
+                </div>` : ''}
 
                 ${fixedDisclaimer}
             `;
         }
     } catch (error) {
-        contentBox.innerHTML = `
-            <div class="tdc-text-center py-5 text-danger fw-bold">
-                ⚠️ AI 診斷連線失敗。<br>
-                <small class="text-muted fw-normal mt-2 d-block">
-                    錯誤: ${escapeHTML(error.message)}<br>
-                    請檢查金鑰狀態，或 AI 回傳格式發生異常。
-                </small>
-            </div>
-        `;
+        contentBox.innerHTML = `<div class="tdc-text-center py-5 text-danger fw-bold">⚠️ AI 診斷連線失敗。<br><small class="text-muted fw-normal mt-2 d-block">錯誤: ${escapeHTML(error.message)}<br>請檢查金鑰狀態，或 AI 回傳格式發生異常。</small></div>`;
     }
 }
