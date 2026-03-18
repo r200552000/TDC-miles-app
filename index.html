@@ -49,7 +49,7 @@
       </div>
       <div class="header-btn-group">
         <button class="btn-header text-primary" onclick="openGuide()"><svg class="lucide me-1"><use href="#icon-book"/></svg> <span class="btn-text-hide">教學</span></button>
-        <button class="btn-header" onclick="openSettings()"><svg class="lucide"><use href="#icon-gear"/></svg></button>
+        <button class="btn-header" id="header-settings-btn" type="button"><svg class="lucide"><use href="#icon-gear"/></svg></button>
       </div>
     </div>
   </div>
@@ -558,5 +558,36 @@
   <script src="js/warehouse.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var settingsBtn = document.getElementById('header-settings-btn');
+      var settingsModalEl = document.getElementById('settingsModal');
+
+      if (!settingsBtn || !settingsModalEl) return;
+
+      settingsBtn.addEventListener('click', function () {
+        try {
+          if (typeof openSettings === 'function') {
+            openSettings();
+            return;
+          }
+        } catch (e) {
+          console.warn('openSettings() failed, fallback to Bootstrap modal.', e);
+        }
+
+        try {
+          if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(settingsModalEl).show();
+          } else {
+            alert('系統發生異常，無法開啟設定頁面，請重新整理頁面。');
+          }
+        } catch (fallbackError) {
+          console.error('Fallback modal open failed:', fallbackError);
+          alert('系統發生異常，無法開啟設定頁面，請重新整理頁面。');
+        }
+      });
+    });
+  </script>
 </body>
 </html>
