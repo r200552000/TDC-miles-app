@@ -43,13 +43,13 @@
       <div class="header-title tdc-flex tdc-align-center">
         <div id="sync-indicator" class="sync-dot sync-green me-2" title="點擊強制對齊最新規章" onclick="triggerSync()"></div>
         <div style="min-width: 0;">
-            <h5>TDC環哩匯X航空消費累哩工具（AI版）</h5>
-            <small class="text-secondary fw-bold">V15.2 體感升級版<span id="hsbc-adapter-status" class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem; transform: translateY(-2px); display: inline-block;">Rules: Standby</span></small>
+          <h5>TDC環哩匯X航空消費累哩工具（AI版）</h5>
+          <small class="text-secondary fw-bold">V15.2 體感升級版<span id="hsbc-adapter-status" class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem; transform: translateY(-2px); display: inline-block;">Rules: Standby</span></small>
         </div>
       </div>
       <div class="header-btn-group">
-          <button class="btn-header text-primary" onclick="openGuide()"><svg class="lucide me-1"><use href="#icon-book"/></svg> <span class="btn-text-hide">教學</span></button>
-          <button class="btn-header" onclick="openSettings()"><svg class="lucide"><use href="#icon-gear"/></svg></button>
+        <button class="btn-header text-primary" onclick="openGuide()"><svg class="lucide me-1"><use href="#icon-book"/></svg> <span class="btn-text-hide">教學</span></button>
+        <button class="btn-header" onclick="openSettings()"><svg class="lucide"><use href="#icon-gear"/></svg></button>
       </div>
     </div>
   </div>
@@ -80,57 +80,58 @@
             <option value="CI">🌸 中華航空 (CI)</option>
           </select>
         </div>
+
         <div class="tdc-row tdc-mb-1">
-            <div class="tdc-col-5">
-              <label class="form-label">幣別</label>
-              <select id="currency-type" class="form-select" onchange="toggleFxInput(this.value)">
-                <option value="TWD">🇹🇼 台幣</option>
-                <option value="FOREIGN">🌎 外幣</option>
-              </select>
-            </div>
-            <div class="tdc-col-7">
-              <label class="form-label">支付方式</label>
-              <select id="payment" class="form-select">
-                <option value="physical">💳 實體卡</option>
-                <option value="online">🌐 線上/網購</option>
-                <option value="apple_pay">🍎 Apple Pay</option>
-                <option value="line_pay">🟩 LINE Pay</option>
-              </select>
-            </div>
+          <div class="tdc-col-5">
+            <label class="form-label">幣別</label>
+            <select id="currency-type" class="form-select" onchange="toggleFxInput(this.value)">
+              <option value="TWD">🇹🇼 台幣</option>
+              <option value="FOREIGN">🌎 外幣</option>
+            </select>
+          </div>
+          <div class="tdc-col-7">
+            <label class="form-label">支付方式</label>
+            <select id="payment" class="form-select">
+              <option value="physical">💳 實體卡</option>
+              <option value="online">🌐 線上/網購</option>
+              <option value="apple_pay">🍎 Apple Pay</option>
+              <option value="line_pay">🟩 LINE Pay</option>
+            </select>
+          </div>
         </div>
 
         <div id="fx-input-group" class="mt-2 tdc-mb-2 p-3" style="background: #f0f9ff; border: 2px dashed #bae6fd; border-radius: 16px; display: none;">
-            <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-2">
-                <label class="form-label text-primary small tdc-m-0">設定外幣與匯率</label>
-                <a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" class="small fw-bold tdc-flex tdc-align-center text-primary-dark"><svg class="lucide me-1" style="width:14px;height:14px;"><use href="#icon-external"/></svg> 牌告匯率參考</a>
+          <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-2">
+            <label class="form-label text-primary small tdc-m-0">設定外幣與匯率</label>
+            <a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" class="small fw-bold tdc-flex tdc-align-center text-primary-dark"><svg class="lucide me-1" style="width:14px;height:14px;"><use href="#icon-external"/></svg> 牌告匯率參考</a>
+          </div>
+          <div class="tdc-row tdc-mb-2">
+            <div class="tdc-col-5">
+              <div class="input-wrapper">
+                <input type="text" id="fx-currency-code" class="form-control text-center fw-bold pe-5" placeholder="如: 日本/JPY" oninput="handleCurrencyInput(this.value)">
+                <button class="btn-inline-clear" type="button" onclick="clearFxCurrencyCode()">⊗</button>
+              </div>
             </div>
-            <div class="tdc-row tdc-mb-2">
-                <div class="tdc-col-5">
-                    <div class="input-wrapper">
-                        <input type="text" id="fx-currency-code" class="form-control text-center fw-bold pe-5" placeholder="如: 日本/JPY" oninput="handleCurrencyInput(this.value)">
-                        <button class="btn-inline-clear" type="button" onclick="clearFxCurrencyCode()">⊗</button>
-                    </div>
-                </div>
-                <div class="tdc-col-7">
-                    <button class="btn btn-outline-primary tdc-w-100 h-100 fw-bold rounded-pill" type="button" onclick="autoFetchFxRate()" id="btn-fetch-fx">
-                        <svg class="lucide me-1" style="width:16px;height:16px;"><use href="#icon-refresh"/></svg>自動帶入匯率
-                    </button>
-                </div>
+            <div class="tdc-col-7">
+              <button class="btn btn-outline-primary tdc-w-100 h-100 fw-bold rounded-pill" type="button" onclick="autoFetchFxRate()" id="btn-fetch-fx">
+                <svg class="lucide me-1" style="width:16px;height:16px;"><use href="#icon-refresh"/></svg>自動帶入匯率
+              </button>
             </div>
-            <div id="fx-currency-hint" class="small fw-bold text-success tdc-mb-2" style="display:none;"></div>
-            <div class="tdc-flex tdc-align-center gap-2 tdc-mb-1 mt-2">
-                <span class="fw-bold text-secondary" style="white-space: nowrap;">1 外幣 =</span>
-                <div class="input-wrapper tdc-grow-1">
-                    <input type="number" id="fx-rate-input" class="form-control pe-5" placeholder="可手動修改" inputmode="decimal" min="0" step="0.0001" oninput="updateFxFeedback(true)">
-                    <button class="btn-inline-clear" type="button" onclick="clearInput('fx-rate-input')">⊗</button>
-                </div>
-                <span class="fw-bold text-secondary">TWD</span>
+          </div>
+          <div id="fx-currency-hint" class="small fw-bold text-success tdc-mb-2" style="display:none;"></div>
+          <div class="tdc-flex tdc-align-center gap-2 tdc-mb-1 mt-2">
+            <span class="fw-bold text-secondary" style="white-space: nowrap;">1 外幣 =</span>
+            <div class="input-wrapper tdc-grow-1">
+              <input type="number" id="fx-rate-input" class="form-control pe-5" placeholder="可手動修改" inputmode="decimal" min="0" step="0.0001" oninput="updateFxFeedback(true)">
+              <button class="btn-inline-clear" type="button" onclick="clearInput('fx-rate-input')">⊗</button>
             </div>
-            <div id="fx-feedback" class="small fw-bold mt-2" style="color: #ef4444; display: none;">
-                💡 實質匯率 (含1.5%)：<span id="fx-real-rate">0</span>
-                <span id="fx-manual-warning" class="text-warning ms-2" style="display:none;">(✏️ 已手動覆寫匯率)</span>
-                <div id="fx-api-time" class="text-muted mt-1 fw-normal" style="font-size: 0.75rem; display: none;"></div>
-            </div>
+            <span class="fw-bold text-secondary">TWD</span>
+          </div>
+          <div id="fx-feedback" class="small fw-bold mt-2" style="color: #ef4444; display: none;">
+            💡 實質匯率 (含1.5%)：<span id="fx-real-rate">0</span>
+            <span id="fx-manual-warning" class="text-warning ms-2" style="display:none;">(✏️ 已手動覆寫匯率)</span>
+            <div id="fx-api-time" class="text-muted mt-1 fw-normal" style="font-size: 0.75rem; display: none;"></div>
+          </div>
         </div>
 
         <div class="tdc-mb-3 mt-3">
@@ -165,11 +166,11 @@
     </div>
 
     <div id="page-list" class="page-section" style="display:none;">
-        <div class="tdc-flex tdc-justify-between align-items-end tdc-mb-3 px-1">
-            <h5 class="text-primary mb-0 tdc-flex tdc-align-center"><svg class="lucide me-2"><use href="#icon-list"/></svg>待結算明細</h5>
-            <span class="badge bg-secondary rounded-pill" id="pending-count" style="font-size:0.8rem;">0 筆</span>
-        </div>
-        <div id="transaction-list-container"></div>
+      <div class="tdc-flex tdc-justify-between align-items-end tdc-mb-3 px-1">
+        <h5 class="text-primary mb-0 tdc-flex tdc-align-center"><svg class="lucide me-2"><use href="#icon-list"/></svg>待結算明細</h5>
+        <span class="badge bg-secondary rounded-pill" id="pending-count" style="font-size:0.8rem;">0 筆</span>
+      </div>
+      <div id="transaction-list-container"></div>
     </div>
 
     <div id="page-status" class="page-section" style="display:none;">
@@ -177,8 +178,8 @@
         <h5 class="tdc-mb-3 text-primary tdc-flex tdc-align-center"><svg class="lucide me-2"><use href="#icon-chart"/></svg>本期總帳</h5>
         <div id="status-container"></div>
         <div class="mt-3 tdc-flex gap-2">
-           <button onclick="clearCurrentStats()" class="btn btn-outline-danger tdc-grow-1 font-hand fw-bold rounded-pill">全部重置</button>
-           <button onclick="batchImport()" class="btn btn-success tdc-grow-1 font-hand fw-bold rounded-pill" style="box-shadow: 2px 2px 0 #047857;">一鍵進倉</button>
+          <button onclick="clearCurrentStats()" class="btn btn-outline-danger tdc-grow-1 font-hand fw-bold rounded-pill">全部重置</button>
+          <button onclick="batchImport()" class="btn btn-success tdc-grow-1 font-hand fw-bold rounded-pill" style="box-shadow: 2px 2px 0 #047857;">一鍵進倉</button>
         </div>
       </div>
       <div class="card-box mt-3" style="background:#fffbeb; border-color:#fde68a;">
@@ -188,108 +189,109 @@
     </div>
 
     <div id="page-warehouse" class="page-section" style="display:none;">
-        <div class="tdc-flex p-1 tdc-mb-3" style="background: #e2e8f0; border-radius: 50px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-            <button class="tdc-grow-1 btn font-hand fw-bold rounded-pill" id="tab-btn-manage" onclick="switchWarehouseTab('manage')" style="color: #64748b; border:none;">資產管理</button>
-            <button class="tdc-grow-1 btn font-hand fw-bold rounded-pill active" id="tab-btn-planner" onclick="switchWarehouseTab('planner')" style="background: #ffffff; color: var(--primary-dark); box-shadow: 0 2px 8px rgba(0,0,0,0.08); border:none;">兌換試算</button>
+      <div class="tdc-flex p-1 tdc-mb-3" style="background: #e2e8f0; border-radius: 50px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+        <button class="tdc-grow-1 btn font-hand fw-bold rounded-pill" id="tab-btn-manage" onclick="switchWarehouseTab('manage')" style="color: #64748b; border:none;">資產管理</button>
+        <button class="tdc-grow-1 btn font-hand fw-bold rounded-pill active" id="tab-btn-planner" onclick="switchWarehouseTab('planner')" style="background: #ffffff; color: var(--primary-dark); box-shadow: 0 2px 8px rgba(0,0,0,0.08); border:none;">兌換試算</button>
+      </div>
+
+      <div id="warehouse-view-manage" style="display:none;">
+        <div class="input-block-card">
+          <div class="input-block-title text-primary"><svg class="lucide me-2"><use href="#icon-plane"/></svg> 板塊 A：存入航空哩程</div>
+          <div class="tdc-mb-2"><input id="native-airline-name" class="form-control" placeholder="航司名稱 (例如: 華航)"></div>
+          <div class="tdc-mb-3"><input id="native-current" type="number" class="form-control" placeholder=" "></div>
+          <button onclick="addNativeAsset()" class="btn btn-outline-primary tdc-w-100 rounded-pill font-hand fw-bold">存入帳戶</button>
+          <div class="small text-muted mt-2 tdc-text-center">💡 系統將主動比對相似名稱並引導歸戶合併</div>
         </div>
 
-        <div id="warehouse-view-manage" style="display:none;">
-            <div class="input-block-card">
-                <div class="input-block-title text-primary"><svg class="lucide me-2"><use href="#icon-plane"/></svg> 板塊 A：存入航空哩程</div>
-                <div class="tdc-mb-2"><input id="native-airline-name" class="form-control" placeholder="航司名稱 (例如: 華航)"></div>
-                <div class="tdc-mb-3"><input id="native-current" type="number" class="form-control" placeholder=" "></div>
-                <button onclick="addNativeAsset()" class="btn btn-outline-primary tdc-w-100 rounded-pill font-hand fw-bold">存入帳戶</button>
-                <div class="small text-muted mt-2 tdc-text-center">💡 系統將主動比對相似名稱並引導歸戶合併</div>
-            </div>
-
-            <div class="input-block-card" style="border-color: #cbd5e1;">
-                <div class="input-block-title text-secondary"><svg class="lucide me-2"><use href="#icon-box"/></svg> 板塊 B：通用積分資產</div>
-                <div class="tdc-row tdc-mb-2">
-                    <div class="tdc-col-7"><input id="raw-point-name" class="form-control" placeholder="名稱 (如: 萬豪, 小樹點)"></div>
-                    <div class="tdc-col-5"><input id="raw-point-current" type="number" class="form-control" placeholder=" "></div>
-                </div>
-                <button onclick="addRawAsset()" class="btn btn-outline-secondary tdc-w-100 rounded-pill font-hand fw-bold">存入資產庫</button>
-                <div class="small text-muted mt-2 tdc-text-center">💡 僅記錄名稱與數量，不具備換算公式</div>
-            </div>
-
-            <div class="input-block-card">
-                <div class="input-block-title text-warning" style="color:#d97706;"><svg class="lucide me-2"><use href="#icon-rotate"/></svg> 板塊 C：實際轉點操作</div>
-                <div class="tdc-row tdc-mb-2">
-                    <div class="tdc-col-7"><input id="trans-source-name" class="form-control" placeholder="扣除來源 (如: 匯豐旅人)"></div>
-                    <div class="tdc-col-5"><input id="trans-current" type="number" class="form-control" placeholder=" "></div>
-                </div>
-                <div class="tdc-mb-2"><input id="trans-target-airline" class="form-control" placeholder="轉入航司 (如: 華航)"></div>
-                <div class="bg-light p-2 rounded-3 border tdc-mb-3">
-                    <label class="small text-muted fw-bold tdc-mb-1">轉出公式 (例如: 3點 = 1哩)</label>
-                    <div class="tdc-flex tdc-align-center gap-2 tdc-mb-2">
-                        <input id="trans-unit-points" type="number" class="form-control" placeholder=" "> <span>點 =</span>
-                        <input id="trans-unit-miles" type="number" class="form-control" placeholder=" "> <span>哩</span>
-                    </div>
-                    <label class="small text-primary fw-bold tdc-mb-1 mt-2">✨ 額外轉換加碼 <span class="text-danger">(選填)</span></label>
-                    <div class="tdc-flex tdc-align-center gap-2">
-                        <span class="small fw-bold text-muted">每滿</span>
-                        <input id="trans-bonus-req" type="number" class="form-control form-control-sm" placeholder=" ">
-                        <span class="small fw-bold text-muted">加贈</span>
-                        <input id="trans-bonus-give" type="number" class="form-control form-control-sm" placeholder=" ">
-                        <span class="small fw-bold text-muted">哩</span>
-                    </div>
-                </div>
-                <button onclick="addTransferAsset()" class="btn btn-outline-warning tdc-w-100 rounded-pill font-hand fw-bold" style="color:#b45309; border-color:#d97706;">確認轉出並扣抵</button>
-                <div class="small text-muted mt-2 tdc-text-center">💡 系統將自動扣除來源餘額，並併入目標航司</div>
-            </div>
-
-            <div id="warehouse-list"></div>
+        <div class="input-block-card" style="border-color: #cbd5e1;">
+          <div class="input-block-title text-secondary"><svg class="lucide me-2"><use href="#icon-box"/></svg> 板塊 B：通用積分資產</div>
+          <div class="tdc-row tdc-mb-2">
+            <div class="tdc-col-7"><input id="raw-point-name" class="form-control" placeholder="名稱 (如: 萬豪, 小樹點)"></div>
+            <div class="tdc-col-5"><input id="raw-point-current" type="number" class="form-control" placeholder=" "></div>
+          </div>
+          <button onclick="addRawAsset()" class="btn btn-outline-secondary tdc-w-100 rounded-pill font-hand fw-bold">存入資產庫</button>
+          <div class="small text-muted mt-2 tdc-text-center">💡 僅記錄名稱與數量，不具備換算公式</div>
         </div>
-        <div id="warehouse-view-planner">
-            <div class="tdc-flex gap-2 tdc-mb-3">
-                <button class="ai-btn-purple tdc-grow-1 tdc-flex flex-column tdc-align-center tdc-justify-center" onclick="startAIDiagnosis('global')">
-                    <svg class="tdc-mb-1" style="width:20px;height:20px;"><use href="#icon-sparkle"/></svg>
-                    全局資產巔峰推薦
-                </button>
-                <button class="ai-btn-blue tdc-grow-1 tdc-flex flex-column tdc-align-center tdc-justify-center" onclick="startAIDiagnosis('specific')">
-                    <svg class="tdc-mb-1" style="width:20px;height:20px;"><use href="#icon-target"/></svg>
-                    指定航線達成方案
-                </button>
+
+        <div class="input-block-card">
+          <div class="input-block-title text-warning" style="color:#d97706;"><svg class="lucide me-2"><use href="#icon-rotate"/></svg> 板塊 C：實際轉點操作</div>
+          <div class="tdc-row tdc-mb-2">
+            <div class="tdc-col-7"><input id="trans-source-name" class="form-control" placeholder="扣除來源 (如: 匯豐旅人)"></div>
+            <div class="tdc-col-5"><input id="trans-current" type="number" class="form-control" placeholder=" "></div>
+          </div>
+          <div class="tdc-mb-2"><input id="trans-target-airline" class="form-control" placeholder="轉入航司 (如: 華航)"></div>
+          <div class="bg-light p-2 rounded-3 border tdc-mb-3">
+            <label class="small text-muted fw-bold tdc-mb-1">轉出公式 (例如: 3點 = 1哩)</label>
+            <div class="tdc-flex tdc-align-center gap-2 tdc-mb-2">
+              <input id="trans-unit-points" type="number" class="form-control" placeholder=" "> <span>點 =</span>
+              <input id="trans-unit-miles" type="number" class="form-control" placeholder=" "> <span>哩</span>
             </div>
-
-            <div class="card-box" style="background: linear-gradient(to bottom, #eff6ff, #ffffff); position: relative;">
-              <h5 class="tdc-mb-3 text-primary tdc-flex tdc-align-center"><svg class="lucide me-2"><use href="#icon-map"/></svg>設定全球兌換目標</h5>
-              <div class="tdc-row tdc-mb-2">
-                  <div class="tdc-col-6"><label class="form-label small fw-bold">🛫 出發地</label>
-                      <select id="planner-from" class="form-select" onchange="runPlannerCalc()">
-                          <option value="TW">🇹🇼 台灣</option><option value="HK_MO">🇭🇰 港澳</option><option value="CN">🇨🇳 中國大陸</option><option value="NE_ASIA">🌸 東北亞</option><option value="SE_ASIA">🥥 東南亞</option>
-                          <option value="S_ASIA">🕌 南亞 (含馬爾地夫)</option><option value="OCEANIA">🦘 大洋洲 (含關島/帛琉)</option>
-                          <option value="NA_W">🗽 北美西岸</option><option value="NA_E">🍎 北美東岸</option><option value="EU">🏰 歐洲</option>
-                          <option value="AFRICA">🦁 非洲</option><option value="S_AMERICA">🗿 南美洲</option>
-                      </select>
-                  </div>
-                  <div class="tdc-col-6"><label class="form-label small fw-bold">🛬 目的地</label>
-                      <select id="planner-to" class="form-select" onchange="runPlannerCalc()">
-                          <option value="TW">🇹🇼 台灣</option><option value="HK_MO">🇭🇰 港澳</option><option value="CN">🇨🇳 中國大陸</option><option value="NE_ASIA" selected>🌸 東北亞</option><option value="SE_ASIA">🥥 東南亞</option>
-                          <option value="S_ASIA">🕌 南亞 (含馬爾地夫)</option><option value="OCEANIA">🦘 大洋洲 (含關島/帛琉)</option>
-                          <option value="NA_W">🗽 北美西岸</option><option value="NA_E">🍎 北美東岸</option><option value="EU">🏰 歐洲</option>
-                          <option value="AFRICA">🦁 非洲</option><option value="S_AMERICA">🗿 南美洲</option>
-                      </select>
-                  </div>
-              </div>
-              <div class="tdc-row tdc-mb-2">
-                <div class="tdc-col-6"><label class="form-label small fw-bold">📅 出發日期</label><input type="date" id="planner-date" class="form-control" onchange="runPlannerCalc()"></div>
-                <div class="tdc-col-6"><label class="form-label small fw-bold">選擇艙等</label><select id="planner-class" class="form-select" onchange="runPlannerCalc()"><option value="Y">💺 經濟艙</option><option value="C">🥂 商務艙</option><option value="F">👑 頭等艙</option></select></div>
-              </div>
-
-              <label class="switch-group tdc-mb-2">
-                <span class="switch-label fw-bold"><svg class="lucide me-1"><use href="#icon-rotate"/></svg> 行程：<span id="trip-label">來回 (Round-trip)</span></span>
-                <input class="form-check-input" type="checkbox" id="planner-trip-type" checked onchange="togglePlannerTrip()">
-              </label>
+            <label class="small text-primary fw-bold tdc-mb-1 mt-2">✨ 額外轉換加碼 <span class="text-danger">(選填)</span></label>
+            <div class="tdc-flex tdc-align-center gap-2">
+              <span class="small fw-bold text-muted">每滿</span>
+              <input id="trans-bonus-req" type="number" class="form-control form-control-sm" placeholder=" ">
+              <span class="small fw-bold text-muted">加贈</span>
+              <input id="trans-bonus-give" type="number" class="form-control form-control-sm" placeholder=" ">
+              <span class="small fw-bold text-muted">哩</span>
             </div>
-
-            <div class="tdc-mb-3 px-1 mt-3">
-                <h6 class="fw-bold text-secondary tdc-mb-2 tdc-flex tdc-align-center"><svg class="lucide me-1"><use href="#icon-box"/></svg>勾選要動用的倉庫資源</h6>
-                <div id="planner-asset-container"></div>
-            </div>
-
-            <div id="planner-results-container"></div>
+          </div>
+          <button onclick="addTransferAsset()" class="btn btn-outline-warning tdc-w-100 rounded-pill font-hand fw-bold" style="color:#b45309; border-color:#d97706;">確認轉出並扣抵</button>
+          <div class="small text-muted mt-2 tdc-text-center">💡 系統將自動扣除來源餘額，並併入目標航司</div>
         </div>
+
+        <div id="warehouse-list"></div>
+      </div>
+
+      <div id="warehouse-view-planner">
+        <div class="tdc-flex gap-2 tdc-mb-3">
+          <button class="ai-btn-purple tdc-grow-1 tdc-flex flex-column tdc-align-center tdc-justify-center" onclick="startAIDiagnosis('global')">
+            <svg class="tdc-mb-1" style="width:20px;height:20px;"><use href="#icon-sparkle"/></svg>
+            全局資產巔峰推薦
+          </button>
+          <button class="ai-btn-blue tdc-grow-1 tdc-flex flex-column tdc-align-center tdc-justify-center" onclick="startAIDiagnosis('specific')">
+            <svg class="tdc-mb-1" style="width:20px;height:20px;"><use href="#icon-target"/></svg>
+            指定航線達成方案
+          </button>
+        </div>
+
+        <div class="card-box" style="background: linear-gradient(to bottom, #eff6ff, #ffffff); position: relative;">
+          <h5 class="tdc-mb-3 text-primary tdc-flex tdc-align-center"><svg class="lucide me-2"><use href="#icon-map"/></svg>設定全球兌換目標</h5>
+          <div class="tdc-row tdc-mb-2">
+            <div class="tdc-col-6"><label class="form-label small fw-bold">🛫 出發地</label>
+              <select id="planner-from" class="form-select" onchange="runPlannerCalc()">
+                <option value="TW">🇹🇼 台灣</option><option value="HK_MO">🇭🇰 港澳</option><option value="CN">🇨🇳 中國大陸</option><option value="NE_ASIA">🌸 東北亞</option><option value="SE_ASIA">🥥 東南亞</option>
+                <option value="S_ASIA">🕌 南亞 (含馬爾地夫)</option><option value="OCEANIA">🦘 大洋洲 (含關島/帛琉)</option>
+                <option value="NA_W">🗽 北美西岸</option><option value="NA_E">🍎 北美東岸</option><option value="EU">🏰 歐洲</option>
+                <option value="AFRICA">🦁 非洲</option><option value="S_AMERICA">🗿 南美洲</option>
+              </select>
+            </div>
+            <div class="tdc-col-6"><label class="form-label small fw-bold">🛬 目的地</label>
+              <select id="planner-to" class="form-select" onchange="runPlannerCalc()">
+                <option value="TW">🇹🇼 台灣</option><option value="HK_MO">🇭🇰 港澳</option><option value="CN">🇨🇳 中國大陸</option><option value="NE_ASIA" selected>🌸 東北亞</option><option value="SE_ASIA">🥥 東南亞</option>
+                <option value="S_ASIA">🕌 南亞 (含馬爾地夫)</option><option value="OCEANIA">🦘 大洋洲 (含關島/帛琉)</option>
+                <option value="NA_W">🗽 北美西岸</option><option value="NA_E">🍎 北美東岸</option><option value="EU">🏰 歐洲</option>
+                <option value="AFRICA">🦁 非洲</option><option value="S_AMERICA">🗿 南美洲</option>
+              </select>
+            </div>
+          </div>
+          <div class="tdc-row tdc-mb-2">
+            <div class="tdc-col-6"><label class="form-label small fw-bold">📅 出發日期</label><input type="date" id="planner-date" class="form-control" onchange="runPlannerCalc()"></div>
+            <div class="tdc-col-6"><label class="form-label small fw-bold">選擇艙等</label><select id="planner-class" class="form-select" onchange="runPlannerCalc()"><option value="Y">💺 經濟艙</option><option value="C">🥂 商務艙</option><option value="F">👑 頭等艙</option></select></div>
+          </div>
+
+          <label class="switch-group tdc-mb-2">
+            <span class="switch-label fw-bold"><svg class="lucide me-1"><use href="#icon-rotate"/></svg> 行程：<span id="trip-label">來回 (Round-trip)</span></span>
+            <input class="form-check-input" type="checkbox" id="planner-trip-type" checked onchange="togglePlannerTrip()">
+          </label>
+        </div>
+
+        <div class="tdc-mb-3 px-1 mt-3">
+          <h6 class="fw-bold text-secondary tdc-mb-2 tdc-flex tdc-align-center"><svg class="lucide me-1"><use href="#icon-box"/></svg>勾選要動用的倉庫資源</h6>
+          <div id="planner-asset-container"></div>
+        </div>
+
+        <div id="planner-results-container"></div>
+      </div>
     </div>
   </div>
 
@@ -328,8 +330,8 @@
         <h5 class="fw-bold tdc-mb-3 tdc-flex tdc-align-center" style="color: #b45309;"><svg class="lucide me-2"><use href="#icon-pen"/></svg> 人工微調修正</h5>
         <p class="small text-muted tdc-mb-3">若系統計算因匯率或四捨五入產生誤差，請在此輸入您實際獲取的正確數字以進行記帳：</p>
         <div class="input-wrapper tdc-mb-3">
-            <input type="number" id="manual-adjust-val" class="form-control border-warning pe-5" placeholder=" " style="font-size: 1.2rem; color: #b45309 !important;">
-            <button class="btn-inline-clear" type="button" onclick="clearInput('manual-adjust-val')">⊗</button>
+          <input type="number" id="manual-adjust-val" class="form-control border-warning pe-5" placeholder=" " style="font-size: 1.2rem; color: #b45309 !important;">
+          <button class="btn-inline-clear" type="button" onclick="clearInput('manual-adjust-val')">⊗</button>
         </div>
         <input type="hidden" id="manual-adjust-idx">
         <div class="tdc-flex gap-2">
@@ -346,8 +348,8 @@
         <h5 class="fw-bold tdc-mb-3 tdc-flex tdc-align-center text-primary-dark"><svg class="lucide me-2"><use href="#icon-pen"/></svg> 修改已消耗額度</h5>
         <p class="small text-muted tdc-mb-3">請輸入此卡片本期「已經消耗」的累積金額。系統將直接覆寫現有進度：</p>
         <div class="input-wrapper tdc-mb-3">
-            <input type="number" id="edit-limit-val" class="form-control border-primary pe-5" placeholder=" " style="font-size: 1.2rem; color: #1e40af !important;">
-            <button class="btn-inline-clear" type="button" onclick="clearInput('edit-limit-val')">⊗</button>
+          <input type="number" id="edit-limit-val" class="form-control border-primary pe-5" placeholder=" " style="font-size: 1.2rem; color: #1e40af !important;">
+          <button class="btn-inline-clear" type="button" onclick="clearInput('edit-limit-val')">⊗</button>
         </div>
         <input type="hidden" id="edit-limit-id">
         <div class="tdc-flex gap-2">
@@ -362,8 +364,8 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content p-4" style="background: linear-gradient(to bottom, #faf5ff, #ffffff);">
         <div class="tdc-text-center tdc-mb-3">
-            <svg class="text-primary tdc-mb-2" style="width:2rem;height:2rem; color:#a855f7 !important;"><use href="#icon-sparkle"/></svg>
-            <h5 class="fw-bold tdc-m-0" style="color: #4c1d95;">解鎖雙引擎 AI 戰略軍師</h5>
+          <svg class="text-primary tdc-mb-2" style="width:2rem;height:2rem; color:#a855f7 !important;"><use href="#icon-sparkle"/></svg>
+          <h5 class="fw-bold tdc-m-0" style="color: #4c1d95;">解鎖雙引擎 AI 戰略軍師</h5>
         </div>
         <div class="px-2 mb-4">
           <div class="tdc-flex align-items-start tdc-mb-3"><div class="fw-bold me-2 mt-1" style="color:#8b5cf6;">●</div><div class="small"><b>全局巔峰推薦</b>：掃描所有資產，主動找出單哩價值最高的隱藏航線。</div></div>
@@ -379,8 +381,8 @@
     <div class="modal-dialog modal-dialog-scrollable">
       <div class="modal-content">
         <div class="tdc-flex tdc-justify-between tdc-align-center tdc-mb-3">
-            <h5 class="fw-bold tdc-m-0 tdc-flex tdc-align-center"><svg class="lucide me-2 text-primary"><use href="#icon-gear"/></svg>系統設定與管理</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <h5 class="fw-bold tdc-m-0 tdc-flex tdc-align-center"><svg class="lucide me-2 text-primary"><use href="#icon-gear"/></svg>系統設定與管理</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body p-0">
           <div class="mb-4">
@@ -389,17 +391,12 @@
               <a href="https://aistudio.google.com/app/apikey" target="_blank" class="small text-decoration-none fw-bold" style="color: #8b5cf6;">如何取得 Key？</a>
             </div>
             <div class="input-wrapper tdc-mb-2">
-                <input type="password" id="gemini-key" class="form-control rounded-pill pe-5" placeholder="貼上金鑰解鎖雙引擎 AI">
-                <button class="btn-inline-clear" type="button" onclick="clearInput('gemini-key')">⊗</button>
+              <input type="password" id="gemini-key" class="form-control rounded-pill pe-5" placeholder="貼上金鑰解鎖雙引擎 AI">
+              <button class="btn-inline-clear" type="button" onclick="clearInput('gemini-key')">⊗</button>
             </div>
-            <div class="tdc-flex tdc-justify-between tdc-align-center mt-3 tdc-mb-2">
-              <label class="fw-bold text-danger small tdc-m-0">GitHub Gist Token (維護者權限)</label>
+            <div class="small text-secondary mt-1 mb-3 px-1" style="line-height: 1.5; text-align: justify;">
+              💡 本工具為免費提供，AI 診斷需使用您個人的 Google Gemini API 金鑰。系統預設呼叫 Flash 類輕量模型，一般日常使用通常落在 Google 提供的免費額度範圍內。若您的 Google 專案已啟用付費，或您改用付費模型、超過免費額度，仍可能依官方規則計費，請自行留意額度狀況。
             </div>
-            <div class="input-wrapper">
-                <input type="password" id="github-token" class="form-control rounded-pill border-danger pe-5" placeholder="一般使用者請留空">
-                <button class="btn-inline-clear" type="button" onclick="clearInput('github-token')">⊗</button>
-            </div>
-            <div class="small text-muted mt-1 px-2">填寫此欄位，AI 戰報將自動產出 rules.json 補丁代碼區塊。</div>
             <div class="security-alert-box mt-3">
               <div class="fw-bold tdc-mb-1 tdc-flex tdc-align-center"><svg class="lucide me-1"><use href="#icon-shield"/></svg> 資安與隱私承諾</div>
               <ul class="mb-0 ps-3">
@@ -408,22 +405,26 @@
               </ul>
             </div>
           </div>
+
           <div class="mb-4">
             <div class="fw-bold tdc-mb-2 text-primary">加碼資格確認</div>
             <label class="switch-group tdc-mb-2" for="setting-hsbc-autopay">
-                <span class="switch-label">匯豐 Live+ 自動扣繳 <small class="text-muted fw-normal">(精選+1%)</small></span>
-                <input class="form-check-input" type="checkbox" id="setting-hsbc-autopay">
+              <span class="switch-label">匯豐 Live+ 自動扣繳 <small class="text-muted fw-normal">(精選+1%)</small></span>
+              <input class="form-check-input" type="checkbox" id="setting-hsbc-autopay">
             </label>
           </div>
+
           <div class="mb-4 p-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px;">
             <div class="fw-bold tdc-mb-2 text-primary-dark tdc-flex tdc-align-center"><svg class="lucide me-1"><use href="#icon-target"/></svg>卡片結帳日設定 (1~31)</div>
             <div class="small text-muted tdc-mb-3">設定後將精準連動您的月度額度歸零進度</div>
             <div id="billing-days-container"></div>
           </div>
+
           <div class="mb-4">
             <div class="fw-bold tdc-mb-2 text-primary">內建神卡開關 (影響計算與監控)</div>
             <div id="builtin-cards-list"></div>
           </div>
+
           <div class="mb-4">
             <div class="fw-bold tdc-mb-2 text-primary">自訂卡片 (含客製化防護)</div>
             <div class="alert alert-warning px-3 py-2 small fw-bold tdc-mb-3" style="background-color: #fffbeb; border: 1px solid #fde68a; color: #b45309; border-radius: 12px; line-height: 1.5;">
@@ -432,11 +433,13 @@
             <div id="custom-cards-list"></div>
             <button class="btn btn-light tdc-w-100 mt-2 font-hand" onclick="addCustomCard()">+ 新增自訂卡片</button>
           </div>
+
           <div class="mb-4" style="background: #fff7ed; border: 2px dashed #fed7aa; border-radius: 20px; padding: 16px;">
             <div class="fw-bold tdc-mb-3 text-warning tdc-flex tdc-align-center" style="color:#b45309;"><svg class="lucide me-2"><use href="#icon-copy"/></svg> 💾 數據搬家中心</div>
             <button class="btn btn-warning tdc-w-100 fw-bold rounded-pill tdc-mb-2 font-hand text-white" style="background: #f59e0b; border:none; padding:12px;" onclick="exportDataMagic()">複製搬家代碼</button>
             <button class="btn btn-primary tdc-w-100 fw-bold rounded-pill font-hand" style="background: #3b82f6; border:none; padding:12px;" onclick="triggerRestoreFlow()">貼上還原代碼</button>
           </div>
+
           <button class="btn btn-primary tdc-w-100 rounded-pill fw-bold font-hand py-2 mb-3" onclick="saveSettings()">儲存設定</button>
         </div>
       </div>
