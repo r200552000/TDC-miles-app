@@ -395,6 +395,14 @@
             <div class="small text-secondary mt-1 mb-3 px-1" style="line-height: 1.5; text-align: justify;">
               💡 本工具為免費提供，AI 診斷需使用您個人的 Google Gemini API 金鑰。系統預設呼叫 Flash 類輕量模型，一般日常使用通常落在 Google 提供的免費額度範圍內。若您的 Google 專案已啟用付費，或您改用付費模型、超過免費額度，仍可能依官方規則計費，請自行留意額度狀況。
             </div>
+            <div class="tdc-flex tdc-justify-between tdc-align-center mt-3 tdc-mb-2">
+              <label class="fw-bold text-danger small tdc-m-0">GitHub Gist Token (維護者權限)</label>
+            </div>
+            <div class="input-wrapper">
+                <input type="password" id="github-token" class="form-control rounded-pill border-danger pe-5" placeholder="一般使用者請留空">
+                <button class="btn-inline-clear" type="button" onclick="clearInput('github-token')">⊗</button>
+            </div>
+            <div class="small text-muted mt-1 px-2">填寫此欄位，AI 戰報將自動產出 rules.json 補丁代碼區塊。</div>
             <div class="security-alert-box mt-3">
               <div class="fw-bold tdc-mb-1 tdc-flex tdc-align-center"><svg class="lucide me-1"><use href="#icon-shield"/></svg> 資安與隱私承諾</div>
               <ul class="mb-0 ps-3">
