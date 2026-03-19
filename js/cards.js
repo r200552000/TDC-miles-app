@@ -46,30 +46,49 @@ const CARD_RULES = {
             }
 
             const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
-            const isMobileWallet = ctx.pay === 'apple_pay'; // 行動支付（Apple Pay / Google Pay / Samsung Pay）
-            const isTruePhysical = !isOnline && (ctx.pay === 'physical' || isMobileWallet);
+            const isMobileWallet = ctx.pay === 'apple_pay';
+            const isThirdPartyPay = ctx.pay === 'line_pay';
+            const isForeignPhysicalEligible = ctx.isForeign && !isOnline && !isThirdPartyPay && (ctx.pay === 'physical' || isMobileWallet);
+            
             const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
+            const isMandarinAir = ['華信'].some(w => ctx.kwKey.includes(w));
+            const isCiEMall = ['emall', '華航emall', '華航 emall'].some(w => ctx.kwKey.includes(w));
+            const isCiSkyBoutique = ['sky boutique', 'skyboutique', '華航sky boutique', '華航 sky boutique'].some(w => ctx.kwKey.includes(w));
+            const isCiDutyFree = ['華航免稅', '機上免稅', 'duty free', 'inflight duty free'].some(w => ctx.kwKey.includes(w));
+
 
             let div = 20;
             let isBonus = false;
             let noteBase = '';
 
-            if (ctx.isBirthday && ctx.isForeign && isTruePhysical) {
+            // 第一層：生日 X3 (必須是生日月且為國外實體商店交易)
+            if (ctx.isBirthday && isForeignPhysicalEligible) {
                 div = 6.6;
                 isBonus = true;
                 noteBase = '🎂 生日海外實體 $6.6';
-            } else if (ctx.cat === 'flight_ci') {
+            } 
+            // 第二層：一般 X2
+            else if (
+                isForeignPhysicalEligible || 
+                ctx.cat === 'flight_ci' || 
+                isMandarinAir || 
+                isCiEMall || 
+                isCiSkyBoutique || 
+                isCiDutyFree || 
+                (ctx.isForeign && isTravelOTA)
+            ) {
                 div = 10;
                 isBonus = true;
-                noteBase = '✈️ 華航官網 $10';
-            } else if (ctx.isForeign && isTravelOTA) {
-                div = 10;
-                isBonus = true;
-                noteBase = '🏨 國外訂房平台 $10';
-            } else if (ctx.isForeign) {
-                div = 10;
-                isBonus = true;
-                noteBase = '🌍 海外消費 $10';
+                
+                if (ctx.cat === 'flight_ci') {
+                    noteBase = '✈️ 華航官網 $10';
+                } else if (isForeignPhysicalEligible) {
+                    noteBase = '🌍 海外實體消費 $10';
+                } else if (ctx.isForeign && isTravelOTA) {
+                    noteBase = '🏨 國外訂房平台 $10';
+                } else {
+                    noteBase = '🛍️ 華航相關通路/免稅 $10';
+                }
             }
 
             if (isBonus) {
@@ -273,30 +292,46 @@ const CARD_RULES = {
             if (blk.ctbc.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '🚫 非回饋', consumedQuota: 0 };
 
             const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
-            const isMobileWallet = ctx.pay === 'apple_pay'; // 行支付（Apple Pay / Google Pay / Samsung Pay）
-            const isTruePhysical = !isOnline && (ctx.pay === 'physical' || isMobileWallet);
-            const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
+            const isMobileWallet = ctx.pay === 'apple_pay'; 
+            const isThirdPartyPay = ctx.pay === 'line_pay';
+            const isForeignPhysicalEligible = ctx.isForeign && !isOnline && !isThirdPartyPay && (ctx.pay === 'physical' || isMobileWallet);
             
+            const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
+            const isMandarinAir = ['華信'].some(w => ctx.kwKey.includes(w));
+            const isCiEMall = ['emall', '華航emall', '華航 emall'].some(w => ctx.kwKey.includes(w));
+            const isCiSkyBoutique = ['sky boutique', 'skyboutique', '華航sky boutique', '華航 sky boutique'].some(w => ctx.kwKey.includes(w));
+            const isCiDutyFree = ['華航免稅', '機上免稅', 'duty free', 'inflight duty free'].some(w => ctx.kwKey.includes(w));
+
             let isBonus = false, div = 18, noteBase = '';
 
-            if (ctx.cat === 'flight_ci') {
-                div = 9;
+            // 第一層：生日 X3 (必須是生日月且為國外實體商店交易)
+            if (ctx.isBirthday && isForeignPhysicalEligible) {
+                div = 6;
                 isBonus = true;
-                noteBase = '華航官網 $9';
-            } else if (ctx.isForeign && isTravelOTA) {
-                div = 9;
-                isBonus = true;
-                noteBase = '🏨 國外訂房平台 $9';
-            } else if (ctx.isForeign && isTruePhysical) {
-                if (ctx.isBirthday) {
-                    div = 6;
-                    isBonus = true;
-                    noteBase = '🎂 生日實體 $6';
-                } else {
-                    div = 9;
-                    isBonus = true;
-                    noteBase = '海外實體 $9';
-                }
+                noteBase = '🎂 生日海外實體 $6';
+            }
+            // 第二層：一般 X2
+            else if (
+                isForeignPhysicalEligible || 
+                ctx.cat === 'flight_ci' || 
+                isMandarinAir || 
+                isCiEMall || 
+                isCiSkyBoutique || 
+                isCiDutyFree || 
+                (ctx.isForeign && isTravelOTA)
+            ) {
+                 div = 9;
+                 isBonus = true;
+
+                 if (ctx.cat === 'flight_ci') {
+                    noteBase = '✈️ 華航官網 $9';
+                 } else if (isForeignPhysicalEligible) {
+                    noteBase = '🌍 海外實體消費 $9';
+                 } else if (ctx.isForeign && isTravelOTA) {
+                    noteBase = '🏨 國外訂房平台 $9';
+                 } else {
+                    noteBase = '🛍️ 華航相關通路/免稅 $9';
+                 }
             }
 
             if (isBonus) {
