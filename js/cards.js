@@ -46,7 +46,8 @@ const CARD_RULES = {
             }
 
             const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
-            const isTruePhysical = !isOnline && (ctx.pay === 'physical' || ctx.pay === 'apple_pay');
+            const isMobileWallet = ctx.pay === 'apple_pay'; // 行動支付（Apple Pay / Google Pay / Samsung Pay）
+            const isTruePhysical = !isOnline && (ctx.pay === 'physical' || isMobileWallet);
             const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
 
             let div = 20;
@@ -113,7 +114,8 @@ const CARD_RULES = {
             const blk = getBlocklistsConfig();
             const kw = getKeywordsConfig();
             if (blk.hsbc_live.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0 };
-            if (['apple_pay', 'line_pay'].includes(ctx.pay)) return { miles: 0, note: '🚫 綁定行動支付無加碼', consumedQuota: 0 };
+            
+            const isMobileOrThirdPartyPay = ['apple_pay', 'line_pay'].includes(ctx.pay);
 
             let isAsian7Code = ctx.isForeign && ctx.currencyCode && ['JPY', 'SGD', 'MYR', 'VND', 'PHP', 'INR', 'LKR'].includes(ctx.currencyCode);
             let isAsian7 = isAsian7Code || (ctx.isForeign && kw.asia_7.some(w => ctx.kwKey.includes(w)));
@@ -130,7 +132,9 @@ const CARD_RULES = {
             let actualQuotaConsumed = 0;
             let isWarning = false;
 
-            if (ctx.isLiveSelect) {
+            if (isMobileOrThirdPartyPay) {
+                noteHtml += `<span class="text-muted d-block mt-1">綁定行動支付/第三方支付，不適用加碼</span>`;
+            } else if (ctx.isLiveSelect) {
                 displayType = '精選';
                 let eligibleSelectedSpend = Math.min(ctx.twdBase, selectedRemaining);
                 bonusPts += eligibleSelectedSpend * 0.03;
@@ -186,16 +190,18 @@ const CARD_RULES = {
             }
 
             let baseDiv = ctx.isForeign ? 15 : 22;
-            let isMobilePay = (ctx.pay === 'apple_pay' || ctx.pay === 'line_pay');
+            
+            // 排除行動支付與第三方支付
+            let isMobileOrThirdPartyPay = (ctx.pay === 'apple_pay' || ctx.pay === 'line_pay');
             let isBonus = false;
 
-            if (ctx.isFlyMode && ctx.cat === 'flight_cx' && !isMobilePay && !ctx.isForeign) {
+            if (ctx.isFlyMode && ctx.cat === 'flight_cx' && !isMobileOrThirdPartyPay && !ctx.isForeign) {
                 isBonus = true;
             } else if (
                 ctx.isFlyMode &&
                 ctx.cat !== 'flight_ci' &&
                 ctx.cat !== 'flight_cx' &&
-                !isMobilePay &&
+                !isMobileOrThirdPartyPay &&
                 (
                     ['agoda', 'booking', 'hotels.com', 'hotels', 'expedia', 'klook', 'kkday'].some(w => ctx.kwKey.includes(w)) ||
                     ['昇恆昌', '免稅', '采盟', 'dfs'].some(w => ctx.kwKey.includes(w)) ||
@@ -267,7 +273,8 @@ const CARD_RULES = {
             if (blk.ctbc.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '🚫 非回饋', consumedQuota: 0 };
 
             const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
-            const isTruePhysical = !isOnline && (ctx.pay === 'physical' || ctx.pay === 'apple_pay');
+            const isMobileWallet = ctx.pay === 'apple_pay'; // 行支付（Apple Pay / Google Pay / Samsung Pay）
+            const isTruePhysical = !isOnline && (ctx.pay === 'physical' || isMobileWallet);
             const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
             
             let isBonus = false, div = 18, noteBase = '';
@@ -307,19 +314,10 @@ const CARD_RULES = {
                     ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 年度額度已滿，降為一般回饋 ($18/哩)</span>`
                     : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆額度上限，超額部分享一般回饋</span>`;
 
-                return {
-                    miles: bonusMiles + baseMiles,
-                    note: noteBase + note,
-                    consumedQuota: remaining,
-                    isWarning: true
-                };
+                return { miles: bonusMiles + baseMiles, note: noteBase + note, consumedQuota: remaining, isWarning: true };
             }
 
-            return {
-                miles: Math.trunc(ctx.twdBase / 18),
-                note: (ctx.isForeign ? '海外網購 $18' : '一般消費 $18'),
-                consumedQuota: 0
-            };
+            return { miles: Math.trunc(ctx.twdBase / 18), note: '一般消費 $18', consumedQuota: 0 };
         }
     }
 };
