@@ -71,7 +71,11 @@ function confirmManualAdjust() {
 // 總帳、編輯額度與明細管理 (含防空洞保護)
 // ==========================================
 function renderStatus() {
-    const db = loadDB(); const now = new Date(); const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const db = loadDB(); 
+    if (!db.settings) db.settings = {};
+    if (!db.settings.enabledBuiltins) db.settings.enabledBuiltins = [];
+    
+    const now = new Date(); const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const data = db.records[monthKey] || {}; const agg = {};
     for(let key in data) {
         const r = data[key];
@@ -121,6 +125,25 @@ function renderStatus() {
             const curr = db.limits[lKey]?.usedBonusMiles || 0; 
             const pct = Math.min(100, Math.max(0, limit ? (curr/limit)*100 : 0));
             const cardTitle = id === 'ctbc_ci' ? '中信 華航鼎尊（每月加碼哩）' : '中信 華航璀璨（每月加碼哩）';
+            
+            const remainMiles = Math.max(0, limit - curr);
+            const baseTwd = (id === 'ctbc_ci') ? 18 : 20;
+            const spendX2 = remainMiles * baseTwd;
+            const spendX3 = Math.floor(remainMiles * (baseTwd / 2));
+            
+            let warningHtml = '';
+            if (pct >= 100) {
+                warningHtml = '<div class="text-danger small mt-1" style="font-size:0.8em;">⚠️ 本月加碼哩已達上限</div>';
+            } else if (pct >= 80 && pct < 100) {
+                warningHtml = '<div class="text-warning small mt-1" style="font-size:0.8em;">⚠️ 接近上限</div>';
+            }
+            
+            warningHtml += `<div class="text-muted mt-1" style="font-size:0.75rem; line-height:1.4;">
+                <div>剩餘加碼哩：${remainMiles.toLocaleString()} 哩</div>
+                <div>一般 X2 約可再刷：NT$${spendX2.toLocaleString()}</div>
+                <div>生日 X3 約可再刷：NT$${spendX3.toLocaleString()}</div>
+            </div>`;
+
             lh += `<div class="tdc-mb-3">
                 <div class="tdc-flex tdc-justify-between tdc-align-center small tdc-mb-1">
                     <strong>${cardTitle}</strong>
@@ -129,6 +152,7 @@ function renderStatus() {
                 <div class="progress" style="height:8px; background-color:#fef3c7;">
                     <div class="progress-bar ${pct>80?'bg-danger':'bg-warning'}" style="width:${pct}%"></div>
                 </div>
+                ${warningHtml}
             </div>`;
         } else {
             const limit = getLimitVal(id); if (limit >= 999999999) return;
