@@ -51,7 +51,7 @@ const CARD_RULES = {
             const flags = getRuleFlagsConfig();
 
             if (blk.ctbc.some(w => ctx.kwKey.includes(w))) {
-                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedBonusMiles: 0, baseMiles: 0, bonusMilesGranted: 0, isWarning: false };
+                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedBonusMiles: 0, baseMiles: 0, bonusMilesGranted: 0, isWarning: false, warningType: 'none' };
             }
 
             const catStr = (ctx.cat || '').toLowerCase();
@@ -105,6 +105,7 @@ const CARD_RULES = {
 
             let bonusMilesGranted = 0;
             let isWarning = false;
+            let warningType = 'none';
 
             if (isBonus) {
                 let limit = getLimitVal('ctbc_ci_inf');
@@ -116,9 +117,14 @@ const CARD_RULES = {
 
                 if (expectedBonusMiles > remainingBonus) {
                     isWarning = true;
-                    let warningNote = remainingBonus === 0
-                        ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 每月加碼額度已滿，降為一般回饋 ($20/哩)</span>`
-                        : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆加碼上限，超額部分享一般回饋</span>`;
+                    let warningNote = '';
+                    if (remainingBonus <= 0) {
+                        warningType = 'limit_exhausted';
+                        warningNote = `<span class="text-danger fw-bold d-block mt-1">⚠️ 本月加碼額度已滿，後續僅享基本回饋 ($20/哩)</span>`;
+                    } else {
+                        warningType = 'partial_overflow';
+                        warningNote = `<span class="text-danger fw-bold d-block mt-1">⚠️ 本筆超過剩餘加碼額度，僅部分哩程享加碼</span>`;
+                    }
                     noteBase += warningNote;
                 }
             }
@@ -130,7 +136,8 @@ const CARD_RULES = {
                 consumedBonusMiles: bonusMilesGranted,
                 baseMiles: baseMiles,
                 bonusMilesGranted: bonusMilesGranted,
-                isWarning: isWarning
+                isWarning: isWarning,
+                warningType: warningType
             };
         }
     },
@@ -141,10 +148,10 @@ const CARD_RULES = {
         calc: (ctx) => {
             let defaultConsumedMap = { hsbc_live_selected: 0, hsbc_live_asia: 0, hsbc_live_task: 0 };
             
-            if (ctx.isEUR) return { miles: 0, note: '<span class="text-danger">🚫 歐盟/英國實體店不回饋</span>', consumedQuota: 0, consumedQuotaMap: defaultConsumedMap };
+            if (ctx.isEUR) return { miles: 0, note: '<span class="text-danger">🚫 歐盟/英國實體店不回饋</span>', consumedQuota: 0, consumedQuotaMap: defaultConsumedMap, isWarning: false, warningType: 'none' };
             const blk = getBlocklistsConfig();
             const kw = getKeywordsConfig();
-            if (blk.hsbc_live.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedQuotaMap: defaultConsumedMap };
+            if (blk.hsbc_live.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedQuotaMap: defaultConsumedMap, isWarning: false, warningType: 'none' };
             
             const isMobileOrThirdPartyPay = ['apple_pay', 'line_pay'].includes(ctx.pay);
             let isAsian7Code = ctx.isForeign && ctx.currencyCode && ['JPY', 'SGD', 'MYR', 'VND', 'PHP', 'INR', 'LKR'].includes(ctx.currencyCode);
@@ -154,6 +161,7 @@ const CARD_RULES = {
             let bonusPts = 0;
             let noteHtml = '';
             let isWarning = false;
+            let warningType = 'none';
 
             let consumedQuotaMap = {
                 hsbc_live_selected: 0,
@@ -168,6 +176,7 @@ const CARD_RULES = {
                     note: finalNote,
                     consumedQuota: 0,
                     isWarning: false,
+                    warningType: 'none',
                     consumedQuotaMap: consumedQuotaMap
                 };
             }
@@ -188,6 +197,9 @@ const CARD_RULES = {
             let hasAsia = false;
             let hasTask = false;
 
+            let hasLimitExhausted = false;
+            let hasPartialOverflow = false;
+
             if (ctx.isLiveSelect) {
                 hasSelected = true;
                 let eligible = Math.min(ctx.twdBase, selectedRemaining);
@@ -196,7 +208,8 @@ const CARD_RULES = {
                 
                 if (ctx.twdBase > selectedRemaining) {
                     isWarning = true;
-                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 三大通路加碼已達上限，超額僅 0.88% 基礎回饋</span>`;
+                    if (selectedRemaining <= 0) hasLimitExhausted = true;
+                    else hasPartialOverflow = true;
                 }
             }
 
@@ -208,7 +221,8 @@ const CARD_RULES = {
 
                 if (ctx.twdBase > asiaRemaining) {
                     isWarning = true;
-                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 亞洲七國餐飲加碼已達上限，超額僅 0.88% 基礎回饋</span>`;
+                    if (asiaRemaining <= 0) hasLimitExhausted = true;
+                    else hasPartialOverflow = true;
                 }
             }
 
@@ -220,8 +234,17 @@ const CARD_RULES = {
 
                 if (ctx.twdBase > taskRemaining) {
                     isWarning = true;
-                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 自動扣繳加碼已達上限，超額僅 0.88% 基礎回饋</span>`;
+                    if (taskRemaining <= 0) hasLimitExhausted = true;
+                    else hasPartialOverflow = true;
                 }
+            }
+
+            if (hasLimitExhausted) {
+                warningType = 'limit_exhausted';
+                noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 本期加碼額度已滿，後續僅享 0.88% 基礎回饋</span>`;
+            } else if (hasPartialOverflow) {
+                warningType = 'partial_overflow';
+                noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 本筆超過剩餘加碼額度，僅部分金額享加碼</span>`;
             }
 
             let displayType = '一般 0.88%';
@@ -242,6 +265,7 @@ const CARD_RULES = {
                 note: finalNote, 
                 consumedQuota: actualQuotaConsumed, 
                 isWarning: isWarning,
+                warningType: warningType,
                 consumedQuotaMap: consumedQuotaMap
             };
         }
@@ -253,7 +277,7 @@ const CARD_RULES = {
         calc: (ctx) => {
             const blk = getBlocklistsConfig();
             if (blk.taishin.some(w => ctx.kwKey.includes(w))) {
-                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0 };
+                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, isWarning: false, warningType: 'none' };
             }
 
             let baseDiv = ctx.isForeign ? 15 : 22;
@@ -297,17 +321,25 @@ const CARD_RULES = {
                 }
 
                 let finalNote = (isBonus ? '越飛有哩 $5' : (ctx.isForeign ? '海外 $15' : '國內 $22')) + noteHtml;
-                return { miles: miles, note: finalNote, consumedQuota: validSpend, isWarning: true };
+                return { 
+                    miles: miles, 
+                    note: finalNote, 
+                    consumedQuota: validSpend, 
+                    isWarning: true, 
+                    warningType: remaining1M <= 0 ? 'limit_exhausted' : 'partial_overflow' 
+                };
             }
 
             if (isBonus) {
-                return { miles: Math.trunc(ctx.twdBase / 5), note: '越飛有哩 $5', consumedQuota: ctx.twdBase };
+                return { miles: Math.trunc(ctx.twdBase / 5), note: '越飛有哩 $5', consumedQuota: ctx.twdBase, isWarning: false, warningType: 'none' };
             }
 
             return {
                 miles: Math.trunc(ctx.twdBase / baseDiv),
                 note: (ctx.isForeign ? '海外 $15' : '國內 $22'),
-                consumedQuota: ctx.twdBase
+                consumedQuota: ctx.twdBase,
+                isWarning: false,
+                warningType: 'none'
             };
         }
     },
@@ -318,7 +350,7 @@ const CARD_RULES = {
         calc: (ctx) => {
             const blk = getBlocklistsConfig();
             if (['麥當勞', ...blk.hsbc_base].some(w => ctx.kwKey.includes(w))) {
-                return { miles: 0, note: '🚫 非回饋', consumedQuota: 0 };
+                return { miles: 0, note: '🚫 非回饋', consumedQuota: 0, isWarning: false, warningType: 'none' };
             }
 
             let div = ctx.isForeign ? 10 : 18;
@@ -326,7 +358,9 @@ const CARD_RULES = {
             return {
                 miles: Math.trunc(ctx.twdBase / div),
                 note: ctx.isForeign ? '$10元/哩 (海外消費)' : '$18元/哩 (國內消費)',
-                consumedQuota: ctx.twdBase
+                consumedQuota: ctx.twdBase,
+                isWarning: false,
+                warningType: 'none'
             };
         }
     },
@@ -339,7 +373,7 @@ const CARD_RULES = {
             const flags = getRuleFlagsConfig();
             
             if (blk.ctbc.some(w => ctx.kwKey.includes(w))) {
-                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedBonusMiles: 0, baseMiles: 0, bonusMilesGranted: 0, isWarning: false };
+                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedBonusMiles: 0, baseMiles: 0, bonusMilesGranted: 0, isWarning: false, warningType: 'none' };
             }
 
             const catStr = (ctx.cat || '').toLowerCase();
@@ -393,6 +427,7 @@ const CARD_RULES = {
 
             let bonusMilesGranted = 0;
             let isWarning = false;
+            let warningType = 'none';
 
             if (isBonus) {
                 let limit = getLimitVal('ctbc_ci');
@@ -404,9 +439,14 @@ const CARD_RULES = {
 
                 if (expectedBonusMiles > remainingBonus) {
                     isWarning = true;
-                    let warningNote = remainingBonus === 0
-                        ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 每月加碼額度已滿，降為一般回饋 ($18/哩)</span>`
-                        : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆加碼上限，超額部分享一般回饋</span>`;
+                    let warningNote = '';
+                    if (remainingBonus <= 0) {
+                        warningType = 'limit_exhausted';
+                        warningNote = `<span class="text-danger fw-bold d-block mt-1">⚠️ 本月加碼額度已滿，後續僅享基本回饋 ($18/哩)</span>`;
+                    } else {
+                        warningType = 'partial_overflow';
+                        warningNote = `<span class="text-danger fw-bold d-block mt-1">⚠️ 本筆超過剩餘加碼額度，僅部分哩程享加碼</span>`;
+                    }
                     noteBase += warningNote;
                 }
             }
@@ -418,7 +458,8 @@ const CARD_RULES = {
                 consumedBonusMiles: bonusMilesGranted,
                 baseMiles: baseMiles,
                 bonusMilesGranted: bonusMilesGranted,
-                isWarning: isWarning
+                isWarning: isWarning,
+                warningType: warningType
             };
         }
     }
