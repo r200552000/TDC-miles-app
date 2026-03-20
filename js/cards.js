@@ -15,13 +15,22 @@ function getLimitKey(db, id, dateObj) {
         const d = new Date(dateObj.getFullYear(), dateObj.getMonth() + offset, 1);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${id}`;
     }
-    let day = db.settings?.billingDays?.[id] || db.settings?.billingDays?.[id.split('_')[0]] || 1;
+
+    let billingId = id;
+    if (['hsbc_live_selected', 'hsbc_live_asia', 'hsbc_live_task'].includes(id)) {
+        billingId = 'hsbc_live';
+    }
+
+    let day = db.settings?.billingDays?.[billingId] || db.settings?.billingDays?.[billingId.split('_')[0]] || 1;
     const offset = dateObj.getDate() > day ? 1 : 0;
     const d = new Date(dateObj.getFullYear(), dateObj.getMonth() + offset, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${id}`;
 }
 
 function getLimitVal(id) {
+    if (id === 'hsbc_live_selected') return 29600;
+    if (id === 'hsbc_live_asia') return 20000;
+    if (id === 'hsbc_live_task') return 20000;
     if (id === 'hsbc_live') return 29600;
     if (id === 'hsbc_inf') return 999999999;
     if (id === 'ctbc_ci_inf') return 600000;
@@ -129,73 +138,111 @@ const CARD_RULES = {
         name: '匯豐 Live+',
         ai_meta: { bestRate: 34, bestScenario: "一般消費", baseRate: 34, isUnlimitedLike: false },
         calc: (ctx) => {
-            if (ctx.isEUR) return { miles: 0, note: '<span class="text-danger">🚫 歐盟/英國實體店不回饋</span>', consumedQuota: 0 };
+            let defaultConsumedMap = { hsbc_live_selected: 0, hsbc_live_asia: 0, hsbc_live_task: 0 };
+            
+            if (ctx.isEUR) return { miles: 0, note: '<span class="text-danger">🚫 歐盟/英國實體店不回饋</span>', consumedQuota: 0, consumedQuotaMap: defaultConsumedMap };
             const blk = getBlocklistsConfig();
             const kw = getKeywordsConfig();
-            if (blk.hsbc_live.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0 };
+            if (blk.hsbc_live.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedQuotaMap: defaultConsumedMap };
             
             const isMobileOrThirdPartyPay = ['apple_pay', 'line_pay'].includes(ctx.pay);
-
             let isAsian7Code = ctx.isForeign && ctx.currencyCode && ['JPY', 'SGD', 'MYR', 'VND', 'PHP', 'INR', 'LKR'].includes(ctx.currencyCode);
             let isAsian7 = isAsian7Code || (ctx.isForeign && kw.asia_7.some(w => ctx.kwKey.includes(w)));
-            let displayType = '一般 0.88%';
+            
             let basePts = ctx.twdBase * 0.0088;
             let bonusPts = 0;
-
-            let limitKey = getLimitKey(ctx.db, 'hsbc_live', new Date());
-            let usedSpend = ctx.db.limits[limitKey]?.spend || 0;
-            let selectedRemaining = Math.max(0, 29600 - usedSpend);
-            let taskRemaining = Math.max(0, 20000 - usedSpend);
-
             let noteHtml = '';
-            let actualQuotaConsumed = 0;
             let isWarning = false;
 
-            if (isMobileOrThirdPartyPay) {
-                noteHtml += `<span class="text-muted d-block mt-1">綁定行動支付/第三方支付，不適用加碼</span>`;
-            } else if (ctx.isLiveSelect) {
-                displayType = '精選';
-                let eligibleSelectedSpend = Math.min(ctx.twdBase, selectedRemaining);
-                bonusPts += eligibleSelectedSpend * 0.03;
-                actualQuotaConsumed = Math.max(actualQuotaConsumed, eligibleSelectedSpend);
+            let consumedQuotaMap = {
+                hsbc_live_selected: 0,
+                hsbc_live_asia: 0,
+                hsbc_live_task: 0
+            };
 
+            if (isMobileOrThirdPartyPay) {
+                let finalNote = `行動支付/第三方支付 0.88% <small>1點=2哩</small><span class="text-muted d-block mt-1">綁定行動支付/第三方支付，不適用加碼</span>`;
+                return {
+                    miles: Math.trunc(basePts) * 2,
+                    note: finalNote,
+                    consumedQuota: 0,
+                    isWarning: false,
+                    consumedQuotaMap: consumedQuotaMap
+                };
+            }
+
+            let selectedLimitKey = getLimitKey(ctx.db, 'hsbc_live_selected', new Date());
+            let selectedUsed = ctx.db.limits[selectedLimitKey]?.spend || 0;
+            let selectedRemaining = Math.max(0, getLimitVal('hsbc_live_selected') - selectedUsed);
+
+            let asiaLimitKey = getLimitKey(ctx.db, 'hsbc_live_asia', new Date());
+            let asiaUsed = ctx.db.limits[asiaLimitKey]?.spend || 0;
+            let asiaRemaining = Math.max(0, getLimitVal('hsbc_live_asia') - asiaUsed);
+
+            let taskLimitKey = getLimitKey(ctx.db, 'hsbc_live_task', new Date());
+            let taskUsed = ctx.db.limits[taskLimitKey]?.spend || 0;
+            let taskRemaining = Math.max(0, getLimitVal('hsbc_live_task') - taskUsed);
+
+            let hasSelected = false;
+            let hasAsia = false;
+            let hasTask = false;
+
+            if (ctx.isLiveSelect) {
+                hasSelected = true;
+                let eligible = Math.min(ctx.twdBase, selectedRemaining);
+                bonusPts += eligible * 0.03;
+                consumedQuotaMap.hsbc_live_selected = eligible;
+                
                 if (ctx.twdBase > selectedRemaining) {
                     isWarning = true;
-                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆精選上限，超額僅 0.88% 基礎回饋</span>`;
-                }
-
-                if (ctx.db.settings?.hsbc_autopay) {
-                    let eligibleTaskSpend = Math.min(ctx.twdBase, taskRemaining);
-                    bonusPts += eligibleTaskSpend * 0.01;
-                    actualQuotaConsumed = Math.max(actualQuotaConsumed, eligibleTaskSpend);
-                    displayType += '+自動扣繳';
-                    if (ctx.twdBase > taskRemaining && !isWarning) {
-                        isWarning = true;
-                        noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆任務上限，超額僅 0.88% 基礎回饋</span>`;
-                    }
-                }
-
-                if (isAsian7) {
-                    let eligibleAsiaSpend = Math.min(ctx.twdBase, taskRemaining);
-                    bonusPts += eligibleAsiaSpend * 0.01;
-                    actualQuotaConsumed = Math.max(actualQuotaConsumed, eligibleAsiaSpend);
-                    displayType = '亞洲七國 5.88%';
-                }
-            } else if (ctx.db.settings?.hsbc_autopay) {
-                let eligibleTaskSpend = Math.min(ctx.twdBase, taskRemaining);
-                bonusPts += eligibleTaskSpend * 0.01;
-                actualQuotaConsumed = Math.max(actualQuotaConsumed, eligibleTaskSpend);
-                displayType = '一般+任務';
-                if (ctx.twdBase > taskRemaining) {
-                    isWarning = true;
-                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆任務上限，超額僅 0.88% 基礎回饋</span>`;
+                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 三大通路加碼已達上限，超額僅 0.88% 基礎回饋</span>`;
                 }
             }
 
+            if (isAsian7) {
+                hasAsia = true;
+                let eligible = Math.min(ctx.twdBase, asiaRemaining);
+                bonusPts += eligible * 0.01;
+                consumedQuotaMap.hsbc_live_asia = eligible;
+
+                if (ctx.twdBase > asiaRemaining) {
+                    isWarning = true;
+                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 亞洲七國餐飲加碼已達上限，超額僅 0.88% 基礎回饋</span>`;
+                }
+            }
+
+            if (ctx.db.settings?.hsbc_autopay) {
+                hasTask = true;
+                let eligible = Math.min(ctx.twdBase, taskRemaining);
+                bonusPts += eligible * 0.01;
+                consumedQuotaMap.hsbc_live_task = eligible;
+
+                if (ctx.twdBase > taskRemaining) {
+                    isWarning = true;
+                    noteHtml += `<span class="text-danger fw-bold d-block mt-1">⚠️ 自動扣繳加碼已達上限，超額僅 0.88% 基礎回饋</span>`;
+                }
+            }
+
+            let displayType = '一般 0.88%';
+            if (hasSelected && hasAsia && hasTask) displayType = '三大通路+亞洲七國餐飲+自動扣繳 5.88%';
+            else if (hasSelected && hasAsia) displayType = '三大通路+亞洲七國餐飲 4.88%';
+            else if (hasSelected && hasTask) displayType = '三大通路+自動扣繳 4.88%';
+            else if (hasAsia && hasTask) displayType = '亞洲七國餐飲+自動扣繳 2.88%';
+            else if (hasSelected) displayType = '三大通路 3.88%';
+            else if (hasAsia) displayType = '亞洲七國餐飲 1.88%';
+            else if (hasTask) displayType = '一般+自動扣繳 1.88%';
+
             let totalMiles = Math.trunc(basePts + bonusPts) * 2;
             let finalNote = `${displayType} <small>1點=2哩</small>` + noteHtml;
+            let actualQuotaConsumed = Math.max(consumedQuotaMap.hsbc_live_selected, consumedQuotaMap.hsbc_live_asia, consumedQuotaMap.hsbc_live_task);
 
-            return { miles: totalMiles, note: finalNote, consumedQuota: actualQuotaConsumed, isWarning: isWarning };
+            return { 
+                miles: totalMiles, 
+                note: finalNote, 
+                consumedQuota: actualQuotaConsumed, 
+                isWarning: isWarning,
+                consumedQuotaMap: consumedQuotaMap
+            };
         }
     },
 
