@@ -6,7 +6,7 @@
 // 上限管家與防護系統
 // ==========================================
 function getLimitKey(db, id, dateObj) {
-    if (['taishin_cx', 'ctbc_ci', 'ctbc_ci_inf'].includes(id)) return `${dateObj.getFullYear()}-${id}`;
+    if (['taishin_cx'].includes(id)) return `${dateObj.getFullYear()}-${id}`;
     if (id.startsWith('custom_')) {
         const c = db.customCards.find(x => x && typeof x === 'object' && x.id === id);
         if (c && c.isAnnual) return `${dateObj.getFullYear()}-${id}`;
@@ -33,9 +33,9 @@ function getLimitVal(id) {
     if (id === 'hsbc_live_task') return 20000;
     if (id === 'hsbc_live') return 29600;
     if (id === 'hsbc_inf') return 999999999;
-    if (id === 'ctbc_ci_inf') return 600000;
+    if (id === 'ctbc_ci_inf') return 60000;
     if (id === 'taishin_cx') return 1000000;
-    if (id === 'ctbc_ci') return 1440000;
+    if (id === 'ctbc_ci') return 80000;
     return 999999999;
 }
 
@@ -51,28 +51,31 @@ const CARD_RULES = {
             const flags = getRuleFlagsConfig();
 
             if (blk.ctbc.some(w => ctx.kwKey.includes(w))) {
-                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0 };
+                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedBonusMiles: 0, baseMiles: 0, bonusMilesGranted: 0, isWarning: false };
             }
 
-            const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
+            const catStr = (ctx.cat || '').toLowerCase();
+            const isExplicitOnlineCategory = ['online', 'ecom', 'ecommerce', 'shopping_online', 'online_shopping', '網購', '線上', '電商'].some(w => catStr.includes(w));
+
             const isMobileWallet = ctx.pay === 'apple_pay';
             const isThirdPartyPay = ctx.pay === 'line_pay';
+            const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online' || isExplicitOnlineCategory;
             const isForeignPhysicalEligible = ctx.isForeign && !isOnline && !isThirdPartyPay && (ctx.pay === 'physical' || isMobileWallet);
             
-            const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
-            const isMandarinAir = ['華信'].some(w => ctx.kwKey.includes(w));
-            const isCiEMall = ['emall', '華航emall', '華航 emall'].some(w => ctx.kwKey.includes(w));
+            const isTravelOTA = ['agoda', 'airbnb', 'booking', 'booking.com', 'expedia', 'hotels', 'hotels.com', 'trip', 'trip.com'].some(w => ctx.kwKey.includes(w));
+            const isMandarinAir = ['華信', 'mandarin', 'mandarin airlines'].some(w => ctx.kwKey.includes(w));
+            const isCiEMall = ['emall', 'e mall', '華航emall', '華航 emall'].some(w => ctx.kwKey.includes(w));
             const isCiSkyBoutique = ['sky boutique', 'skyboutique', '華航sky boutique', '華航 sky boutique'].some(w => ctx.kwKey.includes(w));
             const isCiDutyFree = ['華航免稅', '機上免稅', 'duty free', 'inflight duty free'].some(w => ctx.kwKey.includes(w));
 
-
-            let div = 20;
+            let baseMiles = Math.trunc(ctx.twdBase / 20);
+            let expectedBonusMiles = 0;
             let isBonus = false;
             let noteBase = '';
 
             // 第一層：生日 X3 (必須是生日月且為國外實體商店交易)
             if (ctx.isBirthday && isForeignPhysicalEligible) {
-                div = 6.6;
+                expectedBonusMiles = baseMiles * 2;
                 isBonus = true;
                 noteBase = '🎂 生日海外實體 $6.6';
             } 
@@ -86,7 +89,7 @@ const CARD_RULES = {
                 isCiDutyFree || 
                 (ctx.isForeign && isTravelOTA)
             ) {
-                div = 10;
+                expectedBonusMiles = baseMiles * 1;
                 isBonus = true;
                 
                 if (ctx.cat === 'flight_ci') {
@@ -100,36 +103,34 @@ const CARD_RULES = {
                 }
             }
 
+            let bonusMilesGranted = 0;
+            let isWarning = false;
+
             if (isBonus) {
                 let limit = getLimitVal('ctbc_ci_inf');
-                let used = ctx.db.limits[getLimitKey(ctx.db, 'ctbc_ci_inf', new Date())]?.spend || 0;
-                let remaining = Math.max(0, limit - used);
+                let limitKey = getLimitKey(ctx.db, 'ctbc_ci_inf', new Date());
+                let usedBonus = ctx.db.limits[limitKey]?.usedBonusMiles || 0;
+                let remainingBonus = Math.max(0, limit - usedBonus);
 
-                if (ctx.twdBase <= remaining) {
-                    return {
-                        miles: Math.trunc(ctx.twdBase / div),
-                        note: noteBase,
-                        consumedQuota: ctx.twdBase
-                    };
-                } else {
-                    let bonusMiles = Math.trunc(remaining / div);
-                    let baseMiles = Math.trunc((ctx.twdBase - remaining) / 20);
-                    let note = remaining === 0
-                        ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 年度額度已滿，降為一般回饋 ($20/哩)</span>`
-                        : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆額度上限，超額部分享一般回饋</span>`;
-                    return {
-                        miles: bonusMiles + baseMiles,
-                        note: noteBase + note,
-                        consumedQuota: remaining,
-                        isWarning: true
-                    };
+                bonusMilesGranted = Math.min(expectedBonusMiles, remainingBonus);
+
+                if (expectedBonusMiles > remainingBonus) {
+                    isWarning = true;
+                    let warningNote = remainingBonus === 0
+                        ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 每月加碼額度已滿，降為一般回饋 ($20/哩)</span>`
+                        : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆加碼上限，超額部分享一般回饋</span>`;
+                    noteBase += warningNote;
                 }
             }
 
             return {
-                miles: Math.trunc(ctx.twdBase / 20),
-                note: '一般消費 $20',
-                consumedQuota: 0
+                miles: baseMiles + bonusMilesGranted,
+                note: isBonus ? noteBase : '一般消費 $20',
+                consumedQuota: 0,
+                consumedBonusMiles: bonusMilesGranted,
+                baseMiles: baseMiles,
+                bonusMilesGranted: bonusMilesGranted,
+                isWarning: isWarning
             };
         }
     },
@@ -336,24 +337,33 @@ const CARD_RULES = {
         calc: (ctx) => {
             const blk = getBlocklistsConfig();
             const flags = getRuleFlagsConfig();
-            if (blk.ctbc.some(w => ctx.kwKey.includes(w))) return { miles: 0, note: '🚫 非回饋', consumedQuota: 0 };
+            
+            if (blk.ctbc.some(w => ctx.kwKey.includes(w))) {
+                return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, consumedBonusMiles: 0, baseMiles: 0, bonusMilesGranted: 0, isWarning: false };
+            }
 
-            const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online';
+            const catStr = (ctx.cat || '').toLowerCase();
+            const isExplicitOnlineCategory = ['online', 'ecom', 'ecommerce', 'shopping_online', 'online_shopping', '網購', '線上', '電商'].some(w => catStr.includes(w));
+
             const isMobileWallet = ctx.pay === 'apple_pay'; 
             const isThirdPartyPay = ctx.pay === 'line_pay';
+            const isOnline = flags.strict_online.includes(ctx.cat) || ctx.pay === 'online' || isExplicitOnlineCategory;
             const isForeignPhysicalEligible = ctx.isForeign && !isOnline && !isThirdPartyPay && (ctx.pay === 'physical' || isMobileWallet);
             
-            const isTravelOTA = ['agoda', 'booking', 'trip'].some(w => ctx.kwKey.includes(w));
-            const isMandarinAir = ['華信'].some(w => ctx.kwKey.includes(w));
-            const isCiEMall = ['emall', '華航emall', '華航 emall'].some(w => ctx.kwKey.includes(w));
+            const isTravelOTA = ['agoda', 'airbnb', 'booking', 'booking.com', 'expedia', 'hotels', 'hotels.com', 'trip', 'trip.com'].some(w => ctx.kwKey.includes(w));
+            const isMandarinAir = ['華信', 'mandarin', 'mandarin airlines'].some(w => ctx.kwKey.includes(w));
+            const isCiEMall = ['emall', 'e mall', '華航emall', '華航 emall'].some(w => ctx.kwKey.includes(w));
             const isCiSkyBoutique = ['sky boutique', 'skyboutique', '華航sky boutique', '華航 sky boutique'].some(w => ctx.kwKey.includes(w));
             const isCiDutyFree = ['華航免稅', '機上免稅', 'duty free', 'inflight duty free'].some(w => ctx.kwKey.includes(w));
 
-            let isBonus = false, div = 18, noteBase = '';
+            let baseMiles = Math.trunc(ctx.twdBase / 18);
+            let expectedBonusMiles = 0;
+            let isBonus = false;
+            let noteBase = '';
 
             // 第一層：生日 X3 (必須是生日月且為國外實體商店交易)
             if (ctx.isBirthday && isForeignPhysicalEligible) {
-                div = 6;
+                expectedBonusMiles = baseMiles * 2;
                 isBonus = true;
                 noteBase = '🎂 生日海外實體 $6';
             }
@@ -367,7 +377,7 @@ const CARD_RULES = {
                 isCiDutyFree || 
                 (ctx.isForeign && isTravelOTA)
             ) {
-                 div = 9;
+                 expectedBonusMiles = baseMiles * 1;
                  isBonus = true;
 
                  if (ctx.cat === 'flight_ci') {
@@ -381,25 +391,35 @@ const CARD_RULES = {
                  }
             }
 
+            let bonusMilesGranted = 0;
+            let isWarning = false;
+
             if (isBonus) {
                 let limit = getLimitVal('ctbc_ci');
-                let used = ctx.db.limits[getLimitKey(ctx.db, 'ctbc_ci', new Date())]?.spend || 0;
-                let remaining = Math.max(0, limit - used);
+                let limitKey = getLimitKey(ctx.db, 'ctbc_ci', new Date());
+                let usedBonus = ctx.db.limits[limitKey]?.usedBonusMiles || 0;
+                let remainingBonus = Math.max(0, limit - usedBonus);
 
-                if (ctx.twdBase <= remaining) {
-                    return { miles: Math.trunc(ctx.twdBase / div), note: noteBase, consumedQuota: ctx.twdBase };
+                bonusMilesGranted = Math.min(expectedBonusMiles, remainingBonus);
+
+                if (expectedBonusMiles > remainingBonus) {
+                    isWarning = true;
+                    let warningNote = remainingBonus === 0
+                        ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 每月加碼額度已滿，降為一般回饋 ($18/哩)</span>`
+                        : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆加碼上限，超額部分享一般回饋</span>`;
+                    noteBase += warningNote;
                 }
-
-                let bonusMiles = Math.trunc(remaining / div);
-                let baseMiles = Math.trunc((ctx.twdBase - remaining) / 18);
-                let note = remaining === 0
-                    ? `<span class="text-danger fw-bold d-block mt-1">⚠️ 年度額度已滿，降為一般回饋 ($18/哩)</span>`
-                    : `<span class="text-danger fw-bold d-block mt-1">⚠️ 單筆爆額度上限，超額部分享一般回饋</span>`;
-
-                return { miles: bonusMiles + baseMiles, note: noteBase + note, consumedQuota: remaining, isWarning: true };
             }
 
-            return { miles: Math.trunc(ctx.twdBase / 18), note: '一般消費 $18', consumedQuota: 0 };
+            return {
+                miles: baseMiles + bonusMilesGranted,
+                note: isBonus ? noteBase : '一般消費 $18',
+                consumedQuota: 0,
+                consumedBonusMiles: bonusMilesGranted,
+                baseMiles: baseMiles,
+                bonusMilesGranted: bonusMilesGranted,
+                isWarning: isWarning
+            };
         }
     }
 };
