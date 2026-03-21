@@ -280,8 +280,9 @@ const CARD_RULES = {
                 return { miles: 0, note: '<span class="text-danger">🚫 非回饋項目</span>', consumedQuota: 0, isWarning: false, warningType: 'none' };
             }
 
-            let baseDiv = ctx.isForeign ? 15 : 22;
             const hasTaishinAutopay = !!ctx.db.settings?.taishin_autopay;
+            let baseDiv = hasTaishinAutopay ? (ctx.isForeign ? 15 : 22) : 22;
+            let baseNote = hasTaishinAutopay ? (ctx.isForeign ? '海外 $15' : '國內 $22') : '一般消費 $22';
             
             let isMobileOrThirdPartyPay = (ctx.pay === 'apple_pay' || ctx.pay === 'line_pay');
             let isBonus = false;
@@ -324,7 +325,7 @@ const CARD_RULES = {
                     miles = Math.trunc(ctx.twdBase / baseDiv);
                 }
 
-                let finalNote = (isBonus ? bonusNote : (ctx.isForeign ? '海外 $15' : '國內 $22')) + noteHtml;
+                let finalNote = (isBonus ? bonusNote : baseNote) + noteHtml;
                 return { 
                     miles: miles, 
                     note: finalNote, 
@@ -340,7 +341,7 @@ const CARD_RULES = {
 
             return {
                 miles: Math.trunc(ctx.twdBase / baseDiv),
-                note: (ctx.isForeign ? '海外 $15' : '國內 $22'),
+                note: baseNote,
                 consumedQuota: ctx.twdBase,
                 isWarning: false,
                 warningType: 'none'
