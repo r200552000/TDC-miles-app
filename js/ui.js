@@ -191,12 +191,14 @@ function openSettings() {
     const elGemini = document.getElementById('gemini-key');
     const elGithub = document.getElementById('github-token');
     const elHsbcAutopay = document.getElementById('setting-hsbc-autopay');
+    const elTaishinAutopay = document.getElementById('setting-taishin-autopay');
     
     if(elGemini) elGemini.value = safeGetItem('GEMINI_API_KEY') || '';
     if(elGithub) elGithub.value = safeGetItem('GITHUB_GIST_TOKEN') || '';
     
     const db = loadDB();
     if(elHsbcAutopay) elHsbcAutopay.checked = (db.settings && db.settings.hsbc_autopay) ? true : false;
+    if(elTaishinAutopay) elTaishinAutopay.checked = !!(db.settings && db.settings.taishin_autopay);
     
     renderSettingsCards();
     showModal('settingsModal');
@@ -206,6 +208,7 @@ function saveSettings() {
     const elGemini = document.getElementById('gemini-key');
     const elGithub = document.getElementById('github-token');
     const elHsbcAutopay = document.getElementById('setting-hsbc-autopay');
+    const elTaishinAutopay = document.getElementById('setting-taishin-autopay');
     
     if(elGemini) {
         const key = elGemini.value.trim();
@@ -220,6 +223,9 @@ function saveSettings() {
     if (!db.settings) db.settings = {};
     if(elHsbcAutopay) {
         db.settings.hsbc_autopay = elHsbcAutopay.checked;
+    }
+    if(elTaishinAutopay) {
+        db.settings.taishin_autopay = elTaishinAutopay.checked;
     }
     saveDB(db);
     
