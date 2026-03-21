@@ -281,14 +281,17 @@ const CARD_RULES = {
             }
 
             let baseDiv = ctx.isForeign ? 15 : 22;
+            const hasTaishinAutopay = !!ctx.db.settings?.taishin_autopay;
             
-            // 排除行動支付與第三方支付
             let isMobileOrThirdPartyPay = (ctx.pay === 'apple_pay' || ctx.pay === 'line_pay');
             let isBonus = false;
+            let bonusNote = '';
 
-            if (ctx.isFlyMode && ctx.cat === 'flight_cx' && !isMobileOrThirdPartyPay && !ctx.isForeign) {
+            if (hasTaishinAutopay && ctx.cat === 'flight_cx' && !isMobileOrThirdPartyPay) {
                 isBonus = true;
+                bonusNote = '國泰官網/客服購票 $5';
             } else if (
+                hasTaishinAutopay &&
                 ctx.isFlyMode &&
                 ctx.cat !== 'flight_ci' &&
                 ctx.cat !== 'flight_cx' &&
@@ -301,6 +304,7 @@ const CARD_RULES = {
                 )
             ) {
                 isBonus = true;
+                bonusNote = '越飛有哩 $5';
             }
 
             let limit1M = getLimitVal('taishin_cx');
@@ -320,7 +324,7 @@ const CARD_RULES = {
                     miles = Math.trunc(ctx.twdBase / baseDiv);
                 }
 
-                let finalNote = (isBonus ? '越飛有哩 $5' : (ctx.isForeign ? '海外 $15' : '國內 $22')) + noteHtml;
+                let finalNote = (isBonus ? bonusNote : (ctx.isForeign ? '海外 $15' : '國內 $22')) + noteHtml;
                 return { 
                     miles: miles, 
                     note: finalNote, 
@@ -331,7 +335,7 @@ const CARD_RULES = {
             }
 
             if (isBonus) {
-                return { miles: Math.trunc(ctx.twdBase / 5), note: '越飛有哩 $5', consumedQuota: ctx.twdBase, isWarning: false, warningType: 'none' };
+                return { miles: Math.trunc(ctx.twdBase / 5), note: bonusNote, consumedQuota: ctx.twdBase, isWarning: false, warningType: 'none' };
             }
 
             return {
