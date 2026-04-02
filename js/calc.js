@@ -60,6 +60,8 @@ function calculate() {
 
     if (isCategoryGroup(ctx, 'dining')) {
         ctx.isLiveSelect = true;
+    } else if ((isCategoryGroup(ctx, 'shopping') || isCategoryGroup(ctx, 'entertainment')) && ctx.cat !== 'delivery') {
+        ctx.isLiveSelect = true;
     } else if (ctx.cat !== 'dining_hotel' && ctx.cat !== 'delivery' && kwConfig.live.dining.some(w => ctx.kwKey.includes(w))) {
         ctx.isLiveSelect = true;
     } else if (ctx.cat !== 'delivery' && (kwConfig.live.shop.some(w => ctx.kwKey.includes(w)) || kwConfig.live.entertainment.some(w => ctx.kwKey.includes(w)))) {
